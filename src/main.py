@@ -1,6 +1,17 @@
-from network.functions import NeuralNetwork
+from fastapi import FastAPI
+from src.network.service import NeuralNetwork
 
-foo = NeuralNetwork.load_source(path="src/files/X.npy")
+app = FastAPI(
+    title    = "Trabalho de Inteligência Artificial - Rede Neural LMP",
+    version  = "0.1.0"
+)
 
-print(foo[0])
-print(type(foo))
+@app.get("/")
+async def root():
+    return "{'Hello':'Service is alive and running!'}"
+
+@app.post("/test")
+async def test():
+    network = NeuralNetwork()
+    result = await network.test()
+    print(result)

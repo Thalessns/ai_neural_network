@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio.engine import create_async_engine
 from typing import Union, List, Dict
 from src.database.config import db_config
 
-Base   = declarative_base(metadata=MetaData())
+Base = declarative_base(metadata=MetaData())
 engine = create_async_engine(url=db_config.conn_url)
 
 
@@ -33,3 +33,4 @@ async def execute(query) -> None:
 async def init_models() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        

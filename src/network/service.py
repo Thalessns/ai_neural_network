@@ -5,8 +5,8 @@ from src.loader.service import loader
 
 class NeuralNetwork:
 
-    def __init__(self):
-        pass
+    def __init__(self, initial_learning_rate: int):
+        self.learning_rate = initial_learning_rate
 
     async def iniciar(self):
         # Pegando dados para a rede
@@ -36,6 +36,7 @@ class NeuralNetwork:
         return 1 if output >= 0 else 0
 
     async def test(self):
+        #testar com o xor
         inputs = [1, -1]
         # -1,1,-1
         # 1,-1,-1
@@ -44,10 +45,3 @@ class NeuralNetwork:
         # Neurônios de entrada
         entry_neurons = await neuron_functions.create_entry_neurons(inputs=inputs)
 
-        for neuron in entry_neurons:
-            print(f"""
-                layer: {neuron.layer} {type(neuron.layer)}
-                number: {neuron.number} {type(neuron.number)}
-                input: {neuron.input} {type(neuron.input)}
-                output: {neuron.output} {type(neuron.output)}
-            """)

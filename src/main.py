@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from src.network.service import NeuralNetwork
+from src.neuron.layer import testes_layer
 
 app = FastAPI(
     title="Trabalho de Inteligência Artificial - Rede Neural LMP",
@@ -14,6 +15,5 @@ async def root():
 
 @app.post("/test")
 async def test():
-    network = NeuralNetwork()
-    result = await network.test()
-    await network.iniciar()
+    await testes_layer()
+    return 100

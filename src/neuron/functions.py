@@ -5,7 +5,7 @@ from typing import Callable
 class ActivationFunctions:
 
     @staticmethod
-    async def get_derivative_function(function: Callable) -> Callable:
+    def get_derivative_function(function: Callable) -> Callable:
         map_function_to_derivative = {
             functions.relu: functions.derivative_relu,
             functions.elu: functions.derivative_elu,

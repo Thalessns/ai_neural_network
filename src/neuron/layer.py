@@ -3,20 +3,27 @@ from typing import Callable
 from src.neuron.functions import functions
 
 
-class Layer:
-    def __init__(self, num_neurons: int, activation_function: Callable, num_inputs: int) -> None:
+class InputLayer:
+    @staticmethod
+    def feed_forward(data) -> list[float]:
+        """Passa os dados de entrada para a próxima camada"""
+        return data
+
+
+class HiddenLayer:
+    def __init__(self, num_neurons: int, activation_function: Callable, len_input: int) -> None:
         self.num_neurons = num_neurons
         self.activation_function = activation_function
         self.derivative_function = functions.get_derivative_function(activation_function)
         self.weights: list[list[float]] = []
         self.biases: list[float] = []
 
-        self.init_weights(num_inputs)
+        self.init_weights(len_input)
 
-    def init_weights(self, num_inputs: int) -> None:
+    def init_weights(self, len_input: int) -> None:
         """Inicializa o vetor de pesos com valores aleatórios entre -0.5 e 0.5 e o vetor de biases com 0"""
         for _ in range(self.num_neurons):
-            self.weights.append([random.uniform(-0.5, 0.5) for _ in range(num_inputs)])
+            self.weights.append([random.uniform(-0.5, 0.5) for _ in range(len_input)])
             self.biases.append(0)
 
     @staticmethod
@@ -82,25 +89,57 @@ class Layer:
         return erros_camada_anterior
 
 
+class OutputLayer(HiddenLayer):
+    def __init__(self, num_neurons: int, activation_function: Callable, len_input: int):
+        super().__init__(num_neurons, activation_function, len_input)
+
+    # TODO: reescrever feed_forward e back_propagation para a camada de saída
+
+
 # testes
 async def testes_layer():
-    inputs = [3, 8, 2, 6, 5]
-    camada = Layer(num_neurons=2, activation_function=functions.sigmoid, num_inputs=len(inputs))
-    expected_output = [0.24567, 0.83124]
+    # inputs = [random.randint(-10, 10) for _ in range(random.randint(10, 50))]
+    # expected_output = [random.uniform(0, 1) for _ in range(10)]
+    # AND inputs
+    inputs = [[0, 0], [0, 1], [1, 0], [1, 1]]
+
+    # AND outputs
+    expected_outputs = [[-1], [-1], [-1], [1]]
+    camada = HiddenLayer(num_neurons=1, activation_function=functions.tanh, len_input=len(inputs[0]))
+
     learning_rate = 0.01
-    epochs = 2500
-    erro_anterior = 0.0
+    epochs = 25000
 
-    for _ in range(epochs):
-        output = await camada.feed_forward(inputs)
-        erro = await camada.compute_mean_squared_error(output, expected_output)
-        pesos = [[f'{weight:.2f}' for weight in neuron] for neuron in camada.weights]
-        if _ % 200 == 0:
-            print(f"epoca: {_} - pesos: {pesos} - output: {output} - erro: {erro}")
-        if erro == erro_anterior: # Se o erro não mudar, para o treinamento
-            print(f"epoca: {_} - pesos: {pesos} - output: {output} - erro: {erro}")
-            break
-        erro_anterior = erro
+    last_average_mse = 0
 
-        await camada.back_propagation(inputs, output, expected_output, learning_rate)
+    for epoch in range(epochs):
+        for input, expected_output in zip(inputs, expected_outputs):
+            output = await camada.feed_forward(input)
+            await camada.back_propagation(input, output, expected_output, learning_rate)
 
+        # printa informações a cada 50 épocas
+        if epoch % 50 == 0:
+            # Calcula a média do erro quadrático médio
+            total_mse = 0
+            for input, expected_output in zip(inputs, expected_outputs):
+                output = await camada.feed_forward(input)
+                mse = await camada.compute_mean_squared_error(output, expected_output)
+                total_mse += mse
+            avg_mse = total_mse / len(inputs)
+
+            print(f"""
+            Epoch: {epoch}
+            Weights: {camada.weights}
+            Biases: {camada.biases}
+            MSE: {avg_mse}""")
+            if abs(avg_mse - last_average_mse) < 0.00001:
+                break
+            last_average_mse = avg_mse
+
+    # testes finais
+    print("""
+    ----------------------------
+    Testes finais""")
+    for input, expected_output in zip(inputs, expected_outputs):
+        output = await camada.feed_forward(input)
+        print(f"In: {input} Output: {output} Expected Output: {expected_output}")

@@ -3,20 +3,14 @@ from typing import Callable
 from src.neuron.functions import functions
 
 
-class InputLayer:
-    @staticmethod
-    def feed_forward(data) -> list[float]:
-        """Passa os dados de entrada para a próxima camada"""
-        return data
-
-
-class HiddenLayer:
+class Camada:
     def __init__(self, num_neurons: int, activation_function: Callable, len_input: int) -> None:
         self.num_neurons = num_neurons
         self.activation_function = activation_function
         self.derivative_function = functions.get_derivative_function(activation_function)
         self.weights: list[list[float]] = []
         self.biases: list[float] = []
+        self.output_pre_ativacao: list[float] = []
 
         self.init_weights(len_input)
 
@@ -26,17 +20,6 @@ class HiddenLayer:
             self.weights.append([random.uniform(-0.5, 0.5) for _ in range(len_input)])
             self.biases.append(0)
 
-    @staticmethod
-    async def compute_mean_squared_error(output: list[float], expected_output: list[float]):
-        """Calcula o erro quadrático médio"""
-        if len(output) != len(expected_output):
-            raise ValueError("Listas de output com tamanhos diferentes")
-
-        mean_squared_error = sum((value - expected_value) ** 2
-                                 for value, expected_value in zip(output, expected_output))
-        mean_squared_error /= len(output)
-        return mean_squared_error
-
     async def feed_forward(self, inputs: list[float]) -> list[float]:
         """Realiza a operação de feed forward e retorna a saída da camada"""
 
@@ -44,102 +27,101 @@ class HiddenLayer:
             raise ValueError("Biases e pesos tamanhos diferentes")
 
         outputs = []
+        self.output_pre_ativacao = []
         for neuron_weight, bias in zip(self.weights, self.biases):
-            soma_ponderada = sum(weight * input for weight, input in zip(neuron_weight, inputs)) + bias
+            soma_ponderada = sum(weight * yi for weight, yi in zip(neuron_weight, inputs)) + bias
+            self.output_pre_ativacao.append(soma_ponderada)
             outputs.append(await self.activation_function(soma_ponderada))
         return outputs
+
+
+class InputLayer:
+    @staticmethod
+    async def feed_forward(data) -> list[float]:
+        """Passa os dados de entrada para a próxima camada"""
+        return data
+
+
+class HiddenLayer(Camada):
+    def __init__(self, num_neurons: int, activation_function: Callable, len_input: int) -> None:
+        super().__init__(num_neurons, activation_function, len_input)
+
+    async def feed_forward(self, inputs: list[float]) -> list[float]:
+        return await super().feed_forward(inputs)
+
+    async def back_propagation(self, inputs: list[float], erros_output: list[float], learning_rate: float) -> None:
+        """Realiza o backpropagation para atualizar os pesos e os biases da camada baseado nos erros da camada de
+        saída"""
+
+        if len(self.weights) != len(self.biases):
+            raise ValueError("Biases e pesos tamanhos diferentes")
+
+        derivadas = [await self.derivative_function(vj) for vj in self.output_pre_ativacao]
+
+        gradientes = [erro_neuronio * derivada for erro_neuronio, derivada in zip(erros_output, derivadas)]
+
+        delta_pesos = []
+        delta_biases = []
+        for gradiente in gradientes:
+            delta_pesos.append([learning_rate * gradiente * yi for yi in inputs])
+            delta_biases.append(learning_rate * gradiente)
+
+        # atualização de pesos
+        for neuron in range(len(self.weights)):
+            for i in range(len(self.weights[neuron])):
+                self.weights[neuron][i] += delta_pesos[neuron][i]
+            self.biases[neuron] += delta_biases[neuron]
+
+
+class OutputLayer(Camada):
+    def __init__(self, num_neurons: int, activation_function: Callable, len_input: int):
+        super().__init__(num_neurons, activation_function, len_input)
+
+    async def feed_forward(self, inputs: list[float]) -> list[float]:
+        """Realiza a operação de feed forward e retorna a saída da camada"""
+        resultado = await super().feed_forward(inputs)
+        return resultado
 
     async def back_propagation(self,
                                inputs: list[float],
                                outputs: list[float],
                                expected_outputs: list[float],
-                               learning_rate: float):
+                               learning_rate: float) -> list[float]:
         """Realiza o backpropagation para atualizar os pesos e os biases da camada e retorna o erro da camada
-        anterior"""
+        oculta"""
 
         if len(self.weights) != len(self.biases):
             raise ValueError("Biases e pesos tamanhos diferentes")
         if len(outputs) != len(expected_outputs):
             raise ValueError("Listas de saída com tamanhos diferentes")
 
-        # Calculando o erro
         erros = [expected_output - output for expected_output, output in zip(expected_outputs, outputs)]
-        # Calculando o gradiente
-        informacao_erro = [await self.derivative_function(output) * error for output, error in zip(outputs, erros)]
 
-        # Calculando a correção dos pesos para cada unidade de saída
-        variacao_pesos = []
-        variacao_bias = []
-        for i in range(len(self.weights)):
-            variacao_pesos.append([learning_rate * informacao_erro[i] * input for input in inputs])
-            variacao_bias.append(learning_rate * informacao_erro[i])
+        if len(self.output_pre_ativacao) != len(erros):
+            raise ValueError("erros e erros pre ativação com tamanhos diferentes")
+
+        # Calculando derivadas da função de ativação sobre a soma ponderada
+        derivadas = [await self.derivative_function(vj) for vj in self.output_pre_ativacao]
+
+        # Calculando o gradiente para cada unidade de saída
+        gradientes = [erro_neuronio * derivada for erro_neuronio, derivada in zip(erros, derivadas)]
+
+        # Calculando a variação nos pesos
+        delta_pesos = []
+        delta_biases = []
+        for gradiente in gradientes:
+            delta_pesos.append([learning_rate * gradiente * yi for yi in inputs])
+            delta_biases.append(learning_rate * gradiente)
 
         # Calculando o erro da camada anterior
         erros_camada_anterior = []
-        for i in range(len(self.weights)):
-            soma = sum(informacao_erro[i] * weight for weight in self.weights[i])
-            erros_camada_anterior.append(soma)
+        for j in range(len(inputs)):
+            erros_camada_anterior.append(sum(gradientes[k] * self.weights[k][j] for k in range(self.num_neurons)))
 
-        # Atualizando os pesos e os biases
-        for i in range(len(self.weights)):
-            for j in range(len(self.weights[i])):
-                self.weights[i][j] += variacao_pesos[i][j]
-            self.biases[i] += variacao_bias[i]
+        # alteração de pesos
+        for neuron in range(len(self.weights)):
+            for i in range(len(self.weights[neuron])):
+                self.weights[neuron][i] += delta_pesos[neuron][i]
+            self.biases[neuron] += delta_biases[neuron]
 
         return erros_camada_anterior
-
-
-class OutputLayer(HiddenLayer):
-    def __init__(self, num_neurons: int, activation_function: Callable, len_input: int):
-        super().__init__(num_neurons, activation_function, len_input)
-
-    # TODO: reescrever feed_forward e back_propagation para a camada de saída
-
-
-# testes
-async def testes_layer():
-    # inputs = [random.randint(-10, 10) for _ in range(random.randint(10, 50))]
-    # expected_output = [random.uniform(0, 1) for _ in range(10)]
-    # AND inputs
-    inputs = [[0, 0], [0, 1], [1, 0], [1, 1]]
-
-    # AND outputs
-    expected_outputs = [[-1], [-1], [-1], [1]]
-    camada = HiddenLayer(num_neurons=1, activation_function=functions.tanh, len_input=len(inputs[0]))
-
-    learning_rate = 0.01
-    epochs = 25000
-
-    last_average_mse = 0
-
-    for epoch in range(epochs):
-        for input, expected_output in zip(inputs, expected_outputs):
-            output = await camada.feed_forward(input)
-            await camada.back_propagation(input, output, expected_output, learning_rate)
-
-        # printa informações a cada 50 épocas
-        if epoch % 50 == 0:
-            # Calcula a média do erro quadrático médio
-            total_mse = 0
-            for input, expected_output in zip(inputs, expected_outputs):
-                output = await camada.feed_forward(input)
-                mse = await camada.compute_mean_squared_error(output, expected_output)
-                total_mse += mse
-            avg_mse = total_mse / len(inputs)
-
-            print(f"""
-            Epoch: {epoch}
-            Weights: {camada.weights}
-            Biases: {camada.biases}
-            MSE: {avg_mse}""")
-            if abs(avg_mse - last_average_mse) < 0.00001:
-                break
-            last_average_mse = avg_mse
-
-    # testes finais
-    print("""
-    ----------------------------
-    Testes finais""")
-    for input, expected_output in zip(inputs, expected_outputs):
-        output = await camada.feed_forward(input)
-        print(f"In: {input} Output: {output} Expected Output: {expected_output}")

@@ -99,15 +99,23 @@ class NeuralNetwork:
         radius = 2.3
         labels = [[1 if math.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2) <= radius else 0] for x, y in points]
 
-        train_points = points[:int(0.8 * num_points)]
-        test_points = points[int(0.8 * num_points):]
-        train_labels = labels[:int(0.8 * num_points)]
-        test_labels = labels[int(0.8 * num_points):]
+        train_points = points[:int(0.65 * num_points)]  # 65% dos pontos
+        validation_points = points[int(0.65 * num_points):int(0.80 * num_points)]  # 15% dos pontos
+        test_points = points[int(0.80 * num_points):]  # 20% dos pontos
+
+        train_labels = labels[:int(0.65 * num_points)]
+        validation_labels = labels[int(0.65 * num_points):int(0.80 * num_points)]
+        test_labels = labels[int(0.80 * num_points):]
 
         inputs = train_points
         expected_outputs = train_labels
-        test_inputs = test_points
-        test_expected_outputs = test_labels
+        validation_inputs = validation_points
+        validation_expected_outputs = validation_labels
+
+        best_hidden_weights = self.hidden_layer.weights
+        best_output_weights = self.output_layer.weights
+        best_validation_accuracy = 0
+        epochs_without_improvement = 0
 
         # Treinando a rede
         max_epochs = 200
@@ -116,35 +124,57 @@ class NeuralNetwork:
             await self.update_learning_rate(max_epochs=max_epochs,
                                             epoch=epoch, decay_function=decay_functions.linear)
 
-            # imprime resultados
-            if epoch % 20 == 0:
-                resultados = []
-                print(f"epoca {epoch}")
-                for entrada in test_inputs:
-                    resultados.append(await self.get_output(entrada=entrada))
+            # parada antecipada
+            outputs = []
+            for entrada in validation_inputs:
+                outputs.append(await self.get_output(entrada=entrada))
 
-                # calcular a taxa de verdadeiros positivos ou recall
-                true_positives = 0
-                false_negatives = 0
-                false_positives = 0
-                true_negatives = 0
+            correct_outputs = 0
+            for resultado, esperado in zip(outputs, validation_expected_outputs):
+                if round(resultado[0]) == esperado[0]:
+                    correct_outputs += 1
 
-                for resultado, esperado in zip(resultados, test_expected_outputs):
-                    if resultado[0] >= 0.5 and esperado[0] == 1:
-                        true_positives += 1
-                    elif resultado[0] < 0.5 and esperado[0] == 1:
-                        false_negatives += 1
-                    elif resultado[0] >= 0.5 and esperado[0] == 0:
-                        false_positives += 1
-                    elif resultado[0] < 0.5 and esperado[0] == 0:
-                        true_negatives += 1
+            accuracy = correct_outputs / len(validation_expected_outputs)
+            if accuracy > best_validation_accuracy:
+                best_hidden_weights = self.hidden_layer.weights
+                best_output_weights = self.output_layer.weights
+                best_validation_accuracy = accuracy
+            else:
+                epochs_without_improvement += 1
+                if epochs_without_improvement == 10:
+                    print(f"Parando treinamento na época {epoch}")
+                    print(f"Melhores pesos da camada escondida: {best_hidden_weights}")
+                    print(f"Melhores pesos da camada de saída: {best_output_weights}")
+                    print(f"Melhor acurácia de validação: {best_validation_accuracy}")
+                    print(f"acurácia atual: {accuracy}")
+                    break
 
-                print(f"true_positives: {true_positives}")
-                print(f"false_negatives: {false_negatives}")
-                print(f"false_positives: {false_positives}")
-                print(f"true_negatives: {true_negatives}")
-                print(f"learning_rate: {self.learning_rate}")
-                print("accuracy:", 100 * (true_positives + true_negatives) / len(test_expected_outputs), "%")
-                print("recall:", 100 * true_positives / (true_positives + false_negatives), "%")
+        # Testando a rede
+        self.hidden_layer.weights = best_hidden_weights
+        self.output_layer.weights = best_output_weights
+
+        outputs = []
+        for entrada in test_points:
+            outputs.append(await self.get_output(entrada=entrada))
+
+        true_positives = 0
+        true_negatives = 0
+        false_positives = 0
+        false_negatives = 0
+        for resultado, esperado in zip(outputs, test_labels):
+            if resultado[0] >= 0.5 and esperado[0] == 1:
+                true_positives += 1
+            elif resultado[0] < 0.5 and esperado[0] == 1:
+                false_negatives += 1
+            elif resultado[0] >= 0.5 and esperado[0] == 0:
+                false_positives += 1
+            elif resultado[0] < 0.5 and esperado[0] == 0:
+                true_negatives += 1
+
+        print(f"verdadeiros positivos: {true_positives}")
+        print(f"falsos positivos: {false_positives}")
+        print(f"verdadeiros negativos: {true_negatives}")
+        print(f"falsos negativos: {false_negatives}")
+        print(f"acurácia: {(true_positives + true_negatives) / len(test_labels)}")
 
         return 1

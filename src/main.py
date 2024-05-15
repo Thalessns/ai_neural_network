@@ -14,6 +14,6 @@ async def root():
 
 @app.post("/test")
 async def test():
-    rede = NeuralNetwork(input_size=2, hidden_size=5, output_size=1, initial_learning_rate=0.1)
+    rede = NeuralNetwork(input_size=2, hidden_size=7, output_size=1, initial_learning_rate=0.1)
     await rede.iniciar()
     return 100

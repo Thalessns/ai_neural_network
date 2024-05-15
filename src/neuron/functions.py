@@ -20,7 +20,7 @@ class LearningRateFunctions:
 
     @staticmethod
     async def linear(**kwargs) -> float:
-        decay_rate = kwargs["initial_learning_rate"] / kwargs["max_epochs"]
+        decay_rate = kwargs["epoch"] / kwargs["max_epochs"]
         return kwargs["initial_learning_rate"] * (1 - decay_rate)
 
 

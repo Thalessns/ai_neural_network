@@ -1,13 +1,13 @@
 import random
 from typing import Callable
-from src.neuron.functions import functions
+from src.neuron.functions import activation_functions
 
 
 class Camada:
     def __init__(self, num_neurons: int, activation_function: Callable, len_input: int) -> None:
         self.num_neurons = num_neurons
         self.activation_function = activation_function
-        self.derivative_function = functions.get_derivative_function(activation_function)
+        self.derivative_function = activation_functions.get_derivative_function(activation_function)
         self.weights: list[list[float]] = []
         self.biases: list[float] = []
         self.output_pre_ativacao: list[float] = []

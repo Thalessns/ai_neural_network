@@ -80,6 +80,12 @@ class OutputLayer(Camada):
     async def feed_forward(self, inputs: list[float]) -> list[float]:
         """Realiza a operação de feed forward e retorna a saída da camada"""
         resultado = await super().feed_forward(inputs)
+        # binarizando a saída
+        for i in range(len(resultado)):
+            if resultado[i] > 0.2:
+                resultado[i] = 1
+            else:
+                resultado[i] = -1
         return resultado
 
     async def back_propagation(self,

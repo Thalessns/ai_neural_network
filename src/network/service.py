@@ -2,8 +2,6 @@ from src.loader.service import loader
 from src.neuron.layer import InputLayer, HiddenLayer, OutputLayer
 from src.neuron.functions import activation_functions, decay_functions
 from typing import Callable
-import random
-import math
 
 
 class NeuralNetwork:
@@ -85,32 +83,27 @@ class NeuralNetwork:
 
     async def iniciar(self):
         # Pegando dados para a rede
-        data = await loader.carregar_imagem("src/files/X_png/0.png")
+        data = await loader.carregar_todas_imagens("src/files/X_png")
+        labels = await loader.carregar_todos_rotulos("src/files/Y_letra.txt")
 
-        # Transformando em uma lista de valores
-        data = [item for sublist in data for item in sublist]
+        if len(data) != len(labels):
+            raise ValueError("Dados e rotulos com tamanhos diferentes")
 
-        # Generate some random points
-        num_points = 1000
-        points = [[random.uniform(-3, 5), random.uniform(-3, 5)] for _ in range(num_points)]
+        porcentagem_treino = 0.75  # porcentagem de dados para treinamento
+        porcentagem_validacao = 0.1  # porcentagem de dados para validação
+        cutoff_training = int(porcentagem_treino * len(data))
+        cutoff_validation = cutoff_training + int(porcentagem_validacao * len(data))
+        train_data = data[:cutoff_training]
+        validation_data = data[cutoff_training:cutoff_validation]
+        test_data = data[cutoff_validation:]
 
-        # Define the circle
-        center = (1, 1)
-        radius = 2.3
-        labels = [[1 if math.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2) <= radius else 0] for x, y in points]
+        train_labels = labels[:cutoff_training]
+        validation_labels = labels[cutoff_training:cutoff_validation]
+        test_labels = labels[cutoff_validation:]
 
-        train_points = points[:int(0.65 * num_points)]  # 65% dos pontos
-        validation_points = points[int(0.65 * num_points):int(0.80 * num_points)]  # 15% dos pontos
-        test_points = points[int(0.80 * num_points):]  # 20% dos pontos
-
-        train_labels = labels[:int(0.65 * num_points)]
-        validation_labels = labels[int(0.65 * num_points):int(0.80 * num_points)]
-        test_labels = labels[int(0.80 * num_points):]
-
-        inputs = train_points
-        expected_outputs = train_labels
-        validation_inputs = validation_points
-        validation_expected_outputs = validation_labels
+        print(f"Quantidade de dados de treino: {len(train_data)}")
+        print(f"Quantidade de dados de validação: {len(validation_data)}")
+        print(f"Quantidade de dados de teste: {len(test_data)}")
 
         best_hidden_weights = self.hidden_layer.weights
         best_output_weights = self.output_layer.weights
@@ -118,23 +111,24 @@ class NeuralNetwork:
         epochs_without_improvement = 0
 
         # Treinando a rede
-        max_epochs = 200
+        max_epochs = 80
         for epoch in range(max_epochs):
-            await self.do_one_epoch(inputs=inputs, expected_outputs=expected_outputs)
+            await self.do_one_epoch(inputs=train_data, expected_outputs=train_labels)
             await self.update_learning_rate(max_epochs=max_epochs,
-                                            epoch=epoch, decay_function=decay_functions.linear)
+                                            epoch=epoch, decay_function=decay_functions.time_based)
 
-            # parada antecipada
+        # parada antecipada
             outputs = []
-            for entrada in validation_inputs:
-                outputs.append(await self.get_output(entrada=entrada))
+            for entrada in validation_data:
+                resultado = await self.get_output(entrada=entrada)
+                outputs.append(resultado)
 
             correct_outputs = 0
-            for resultado, esperado in zip(outputs, validation_expected_outputs):
-                if round(resultado[0]) == esperado[0]:
+            for resultado, esperado in zip(outputs, validation_labels):
+                if resultado == esperado:
                     correct_outputs += 1
 
-            accuracy = correct_outputs / len(validation_expected_outputs)
+            accuracy = correct_outputs / len(validation_labels)
             if accuracy > best_validation_accuracy:
                 best_hidden_weights = self.hidden_layer.weights
                 best_output_weights = self.output_layer.weights
@@ -143,8 +137,6 @@ class NeuralNetwork:
                 epochs_without_improvement += 1
                 if epochs_without_improvement == 10:
                     print(f"Parando treinamento na época {epoch}")
-                    print(f"Melhores pesos da camada escondida: {best_hidden_weights}")
-                    print(f"Melhores pesos da camada de saída: {best_output_weights}")
                     print(f"Melhor acurácia de validação: {best_validation_accuracy}")
                     print(f"acurácia atual: {accuracy}")
                     break
@@ -154,27 +146,16 @@ class NeuralNetwork:
         self.output_layer.weights = best_output_weights
 
         outputs = []
-        for entrada in test_points:
-            outputs.append(await self.get_output(entrada=entrada))
+        for entrada in test_data:
+            resultado = await self.get_output(entrada=entrada)
+            outputs.append(resultado)
 
-        true_positives = 0
-        true_negatives = 0
-        false_positives = 0
-        false_negatives = 0
+        correct_outputs = 0
         for resultado, esperado in zip(outputs, test_labels):
-            if resultado[0] >= 0.5 and esperado[0] == 1:
-                true_positives += 1
-            elif resultado[0] < 0.5 and esperado[0] == 1:
-                false_negatives += 1
-            elif resultado[0] >= 0.5 and esperado[0] == 0:
-                false_positives += 1
-            elif resultado[0] < 0.5 and esperado[0] == 0:
-                true_negatives += 1
+            print(f"Resultado: {resultado} | Esperado: {esperado}")
+            if resultado == esperado:
+                correct_outputs += 1
 
-        print(f"verdadeiros positivos: {true_positives}")
-        print(f"falsos positivos: {false_positives}")
-        print(f"verdadeiros negativos: {true_negatives}")
-        print(f"falsos negativos: {false_negatives}")
-        print(f"acurácia: {(true_positives + true_negatives) / len(test_labels)}")
+        print(f"acurácia final: {correct_outputs / len(test_labels)}")
 
         return 1

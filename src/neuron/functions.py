@@ -1,5 +1,6 @@
 import math
-from typing import Callable
+import inspect
+from typing import List, Callable
 
 
 class LearningRateFunctions:
@@ -22,31 +23,11 @@ class LearningRateFunctions:
     async def linear(**kwargs) -> float:
         decay_rate = kwargs["epoch"] / kwargs["max_epochs"]
         return kwargs["initial_learning_rate"] * (1 - decay_rate)
-
+    
 
 decay_functions = LearningRateFunctions()
 
-
 class ActivationFunctions:
-
-    @staticmethod
-    def get_derivative_function(function: Callable) -> Callable:
-        map_function_to_derivative = {
-            activation_functions.relu: activation_functions.derivative_relu,
-            activation_functions.elu: activation_functions.derivative_elu,
-            activation_functions.swish: activation_functions.derivative_swish,
-            activation_functions.selu: activation_functions.derivative_selu,
-            activation_functions.soft_plus: activation_functions.derivative_soft_plus,
-            activation_functions.hard_swish: activation_functions.derivative_hard_swish,
-            activation_functions.sigmoid: activation_functions.derivative_sigmoid,
-            activation_functions.soft_sign: activation_functions.derivative_soft_sign,
-            activation_functions.tanh: activation_functions.derivative_tanh,
-            activation_functions.hard_sigmoid: activation_functions.derivative_hard_sigmoid,
-            activation_functions.tanh_shrink: activation_functions.derivative_tanh_shrink,
-            activation_functions.soft_shrink: activation_functions.derivative_soft_shrink,
-            activation_functions.hard_shrink: activation_functions.derivative_hard_shrink
-        }
-        return map_function_to_derivative[function]
 
     @staticmethod
     async def relu(x: float) -> float:
@@ -183,3 +164,5 @@ class ActivationFunctions:
 
 
 activation_functions = ActivationFunctions()
+
+

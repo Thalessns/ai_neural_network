@@ -1,13 +1,13 @@
 import random
 from typing import Callable
-from src.neuron.functions import activation_functions
+from src.neuron.utils import utils
 
 
 class Camada:
     def __init__(self, num_neurons: int, activation_function: Callable, len_input: int) -> None:
         self.num_neurons = num_neurons
         self.activation_function = activation_function
-        self.derivative_function = activation_functions.get_derivative_function(activation_function)
+        self.derivative_function = utils.get_derivative_function(activation_function)
         self.weights: list[list[float]] = []
         self.biases: list[float] = []
         self.output_pre_ativacao: list[float] = []
@@ -32,10 +32,12 @@ class Camada:
             soma_ponderada = sum(weight * yi for weight, yi in zip(neuron_weight, inputs)) + bias
             self.output_pre_ativacao.append(soma_ponderada)
             outputs.append(await self.activation_function(soma_ponderada))
+
         return outputs
 
 
 class InputLayer:
+
     @staticmethod
     async def feed_forward(data) -> list[float]:
         """Passa os dados de entrada para a próxima camada"""
@@ -43,6 +45,7 @@ class InputLayer:
 
 
 class HiddenLayer(Camada):
+
     def __init__(self, num_neurons: int, activation_function: Callable, len_input: int) -> None:
         super().__init__(num_neurons, activation_function, len_input)
 
@@ -74,6 +77,7 @@ class HiddenLayer(Camada):
 
 
 class OutputLayer(Camada):
+    
     def __init__(self, num_neurons: int, activation_function: Callable, len_input: int):
         super().__init__(num_neurons, activation_function, len_input)
 
@@ -88,11 +92,13 @@ class OutputLayer(Camada):
                 resultado[i] = -1
         return resultado
 
-    async def back_propagation(self,
-                               inputs: list[float],
-                               outputs: list[float],
-                               expected_outputs: list[float],
-                               learning_rate: float) -> list[float]:
+    async def back_propagation(
+        self,
+        inputs: list[float],
+        outputs: list[float],
+        expected_outputs: list[float],
+        learning_rate: float
+    ) -> list[float]:
         """Realiza o backpropagation para atualizar os pesos e os biases da camada e retorna o erro da camada
         oculta"""
 

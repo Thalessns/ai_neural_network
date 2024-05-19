@@ -1,5 +1,9 @@
 from fastapi import FastAPI
-from src.network.service import NeuralNetwork
+from typing import Dict, Any
+
+from src.database.utils import init_models
+from src.database.router import database_router
+from src.network.router import network_router
 
 app = FastAPI(
     title="Trabalho de Inteligência Artificial - Rede Neural LMP",
@@ -7,13 +11,12 @@ app = FastAPI(
 )
 
 
-@app.get("/")
-async def root():
-    return "{'Hello':'Service is alive and running!'}"
+@app.get("/", response_model=Dict[str, Any])
+async def root() -> Dict[str, Any]:
+    return {'Hello':'Service is alive and running!'}
 
-
-@app.post("/test")
-async def test():
-    rede = NeuralNetwork(input_size=120, hidden_size=56, output_size=26, initial_learning_rate=0.1)
-    await rede.iniciar()
-    return 100
+# Iniciando banco de dados
+app.add_event_handler("startup", init_models)
+# Adicionando rotas da rede neural
+app.include_router(database_router)
+app.include_router(network_router)

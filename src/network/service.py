@@ -1,25 +1,48 @@
+from typing import Any, Callable
+
 from src.loader.service import loader
 from src.neuron.layer import InputLayer, HiddenLayer, OutputLayer
-from src.neuron.functions import activation_functions, decay_functions
-from typing import Callable
+from src.network.schemas import TreinamentoInput
+from src.database.service import database
 
 
 class NeuralNetwork:
 
-    def __init__(self, input_size: int, hidden_size: int, output_size: int, initial_learning_rate: float):
+    def __init__(
+        self, 
+        input_size: int, 
+        hidden_size: int, 
+        output_size: int,
+        activation_functions: list[Callable],
+        learning_rate_function: str,
+        initial_learning_rate: float
+    ) -> Any:
+        self.input_size = input_size 
+        self.hidden_size = hidden_size 
+        self.output_size = output_size
+        self.activation_functions = activation_functions
+
         self.initial_learning_rate = initial_learning_rate  # usada para o decaimento da taxa de aprendizado
         self.learning_rate = initial_learning_rate  # usada para o treinamento
+        self.learning_rate_function = learning_rate_function
+
         self.input_layer = InputLayer()
-        self.hidden_layer = HiddenLayer(num_neurons=hidden_size,
-                                        activation_function=activation_functions.tanh,
-                                        len_input=input_size)
-        self.output_layer = OutputLayer(num_neurons=output_size,
-                                        activation_function=activation_functions.tanh,
-                                        len_input=hidden_size)
+        self.hidden_layer = HiddenLayer(
+            num_neurons = hidden_size,
+            activation_function = activation_functions[0],
+            len_input = input_size
+        )
+        self.output_layer = OutputLayer(
+            num_neurons = output_size,
+            activation_function = activation_functions[1],
+            len_input = hidden_size
+        )
 
     @staticmethod
-    async def compute_mean_squared_error(all_outputs: list[list[float]],
-                                         all_expected_outputs: list[list[float]]) -> float:
+    async def compute_mean_squared_error(
+        all_outputs: list[list[float]],
+        all_expected_outputs: list[list[float]]
+    ) -> float:
         """Dado as saídas e saídas esperadas para o conjunto de dados completo, calcula o erro quadrático médio"""
 
         if len(all_outputs) != len(all_expected_outputs):
@@ -40,28 +63,33 @@ class NeuralNetwork:
     async def get_output(self, entrada: list[float]) -> list[float]:
         """Dado uma entrada, calcula a saída da rede neural"""
 
-        hidden_inputs = await self.input_layer.feed_forward(entrada)
+        hidden_inputs  = await self.input_layer.feed_forward(entrada)
         hidden_outputs = await self.hidden_layer.feed_forward(hidden_inputs)
-        output = await self.output_layer.feed_forward(hidden_outputs)
+        output         = await self.output_layer.feed_forward(hidden_outputs)
+        
         return output
 
     async def train_one_sample(self, inputs: list[float], expected_outputs: list[float]) -> None:
         """Treina a rede neural com um exemplo de entrada e saída esperada"""
 
         # Feed forward
-        hidden_inputs = await self.input_layer.feed_forward(inputs)
+        hidden_inputs  = await self.input_layer.feed_forward(inputs)
         hidden_outputs = await self.hidden_layer.feed_forward(hidden_inputs)
-        outputs = await self.output_layer.feed_forward(hidden_outputs)
+        outputs        = await self.output_layer.feed_forward(hidden_outputs)
 
         # Back propagation
-        hidden_error = await self.output_layer.back_propagation(inputs=hidden_outputs,
-                                                                outputs=outputs,
-                                                                expected_outputs=expected_outputs,
-                                                                learning_rate=self.learning_rate)
-        await self.hidden_layer.back_propagation(inputs=hidden_inputs,
-                                                 erros_output=hidden_error,
-                                                 learning_rate=self.learning_rate)
-
+        hidden_error = await self.output_layer.back_propagation(
+            inputs=hidden_outputs,
+            outputs=outputs,
+            expected_outputs=expected_outputs,
+            learning_rate=self.learning_rate
+        )
+        await self.hidden_layer.back_propagation(
+            inputs=hidden_inputs,
+            erros_output=hidden_error,
+            learning_rate=self.learning_rate
+            )
+        
     async def do_one_epoch(self, inputs: list[list[float]], expected_outputs: list[list[float]]) -> None:
         """Treina uma época da rede neural"""
 
@@ -81,7 +109,7 @@ class NeuralNetwork:
 
         self.learning_rate = await decay_function(**kwargs)
 
-    async def iniciar(self):
+    async def treinar(self):
         # Pegando dados para a rede
         data = await loader.carregar_todas_imagens("src/files/X_png")
         labels = await loader.carregar_todos_rotulos("src/files/Y_letra.txt")
@@ -114,8 +142,11 @@ class NeuralNetwork:
         max_epochs = 80
         for epoch in range(max_epochs):
             await self.do_one_epoch(inputs=train_data, expected_outputs=train_labels)
-            await self.update_learning_rate(max_epochs=max_epochs,
-                                            epoch=epoch, decay_function=decay_functions.time_based)
+            await self.update_learning_rate(
+                max_epochs=max_epochs,
+                epoch=epoch, 
+                decay_function=self.learning_rate_function
+            )
 
         # parada antecipada
             outputs = []
@@ -140,6 +171,21 @@ class NeuralNetwork:
                     print(f"Melhor acurácia de validação: {best_validation_accuracy}")
                     print(f"acurácia atual: {accuracy}")
                     break
+            
+        # Inserindo dados de treinamento no banco
+        await database.insert(
+            TreinamentoInput(
+                input_size = self.input_size,
+                hidden_size = self.hidden_size,
+                output_size = self.output_size,
+                hidden_weights = best_hidden_weights,
+                output_weights = best_output_weights,
+                initial_learning_rate = self.initial_learning_rate,
+                activation_functions  = [func.__name__ for func in self.activation_functions],
+                learning_rate_function = self.learning_rate_function.__name__,
+                accuracy = best_validation_accuracy
+            )
+        )
 
         # Testando a rede
         self.hidden_layer.weights = best_hidden_weights

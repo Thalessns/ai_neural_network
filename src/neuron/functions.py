@@ -1,27 +1,33 @@
 import math
-from typing import Callable
+import inspect
+from typing import List, Callable
 
 
-class ActivationFunctions:
+class LearningRateFunctions:
 
     @staticmethod
-    def get_derivative_function(function: Callable) -> Callable:
-        map_function_to_derivative = {
-            functions.relu: functions.derivative_relu,
-            functions.elu: functions.derivative_elu,
-            functions.swish: functions.derivative_swish,
-            functions.selu: functions.derivative_selu,
-            functions.soft_plus: functions.derivative_soft_plus,
-            functions.hard_swish: functions.derivative_hard_swish,
-            functions.sigmoid: functions.derivative_sigmoid,
-            functions.soft_sign: functions.derivative_soft_sign,
-            functions.tanh: functions.derivative_tanh,
-            functions.hard_sigmoid: functions.derivative_hard_sigmoid,
-            functions.tanh_shrink: functions.derivative_tanh_shrink,
-            functions.soft_shrink: functions.derivative_soft_shrink,
-            functions.hard_shrink: functions.derivative_hard_shrink
-        }
-        return map_function_to_derivative[function]
+    async def constant(**kwargs) -> float:
+        return kwargs["current_learning_rate"]
+
+    @staticmethod
+    async def exponential(**kwargs) -> float:
+        decay_rate = 0.1
+        return kwargs["current_learning_rate"] * math.exp(-decay_rate * kwargs["epoch"])
+
+    @staticmethod
+    async def time_based(**kwargs) -> float:
+        decay_rate = 0.01
+        return kwargs["current_learning_rate"] / (1 + decay_rate * kwargs["epoch"])
+
+    @staticmethod
+    async def linear(**kwargs) -> float:
+        decay_rate = kwargs["epoch"] / kwargs["max_epochs"]
+        return kwargs["initial_learning_rate"] * (1 - decay_rate)
+    
+
+decay_functions = LearningRateFunctions()
+
+class ActivationFunctions:
 
     @staticmethod
     async def relu(x: float) -> float:
@@ -157,4 +163,6 @@ class ActivationFunctions:
         return 0
 
 
-functions = ActivationFunctions()
+activation_functions = ActivationFunctions()
+
+

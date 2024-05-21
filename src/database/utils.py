@@ -25,9 +25,9 @@ async def fetch_one(query) -> Dict:
     return res
 
 
-async def execute(query) -> None: 
+async def execute(query): 
     async with engine.begin() as conn:
-        await conn.execute(query)
+        return await conn.execute(query)
 
 
 async def init_models() -> None:

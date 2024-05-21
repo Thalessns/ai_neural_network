@@ -13,7 +13,7 @@ async def fetch_all(query) -> Union[List[Dict], None]:
     cursor = await execute(query)
     rows = cursor.fetchall()
     if len(rows) < 1:
-        return Exception("No result found")
+        raise Exception("Nenhum resultado encontrado")
     return [row._mapping for row in rows]
 
 
@@ -21,7 +21,7 @@ async def fetch_one(query) -> Dict:
     cursor = await execute(query)
     res = cursor.fetchone()
     if res is None:
-        return Exception("No result found")
+        raise Exception("Nenhum resultado encontrado")
     return res
 
 

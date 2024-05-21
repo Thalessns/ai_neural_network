@@ -1,6 +1,4 @@
 import math
-import inspect
-from typing import List, Callable
 
 
 class LearningRateFunctions:
@@ -27,15 +25,16 @@ class LearningRateFunctions:
 
 decay_functions = LearningRateFunctions()
 
+
 class ActivationFunctions:
 
     @staticmethod
     async def relu(x: float) -> float:
-        return max(0.0, x)
+        return max(-1, x)
 
     @staticmethod
     async def derivative_relu(x: float) -> float:
-        return 1.0 if x > 0 else 0.0
+        return 1.0 if x > 0 else -1
 
     @staticmethod
     async def elu(x: float, alpha: float = 1.0) -> float:
@@ -77,7 +76,7 @@ class ActivationFunctions:
     @staticmethod
     async def hard_swish(x: float) -> float:
         if x < -3:
-            return 0
+            return -1
         elif x >= 3:
             return x
         return (x * (x + 3)) / 6

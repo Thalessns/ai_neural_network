@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import List, Any, Callable
 
 from src.loader.service import loader
 from src.neuron.layer import InputLayer, HiddenLayer, OutputLayer
@@ -15,7 +15,9 @@ class NeuralNetwork:
         output_size: int,
         activation_functions: list[Callable],
         learning_rate_function: str,
-        initial_learning_rate: float
+        initial_learning_rate: float,
+        hidden_weights: List[List[float]] = None,
+        output_weights: List[List[float]] = None
     ) -> Any:
         self.input_size = input_size 
         self.hidden_size = hidden_size 
@@ -30,35 +32,15 @@ class NeuralNetwork:
         self.hidden_layer = HiddenLayer(
             num_neurons = hidden_size,
             activation_function = activation_functions[0],
-            len_input = input_size
+            len_input = input_size,
+            weights = hidden_weights
         )
         self.output_layer = OutputLayer(
             num_neurons = output_size,
             activation_function = activation_functions[1],
-            len_input = hidden_size
+            len_input = hidden_size,
+            weights = output_weights
         )
-
-    @staticmethod
-    async def compute_mean_squared_error(
-        all_outputs: list[list[float]],
-        all_expected_outputs: list[list[float]]
-    ) -> float:
-        """Dado as saídas e saídas esperadas para o conjunto de dados completo, calcula o erro quadrático médio"""
-
-        if len(all_outputs) != len(all_expected_outputs):
-            raise ValueError("Listas de outputs com tamanhos diferentes")
-
-        erros_neuronio = []
-        for obtidos_neuronio, esperados_neuronio in zip(all_outputs, all_expected_outputs):
-            erros_neuronio.append([obtido - esperado for obtido, esperado in zip(obtidos_neuronio, esperados_neuronio)])
-
-        erro_instantaneo = []
-        for erro_neuronioj in erros_neuronio:
-            erro_instantaneo.append(sum(erro ** 2 for erro in erro_neuronioj) / 2.0)
-
-        erro_quadratico_medio = sum(erro_instantaneo) / len(erro_instantaneo)
-
-        return erro_quadratico_medio
 
     async def get_output(self, entrada: list[float]) -> list[float]:
         """Dado uma entrada, calcula a saída da rede neural"""
@@ -109,14 +91,10 @@ class NeuralNetwork:
 
         self.learning_rate = await decay_function(**kwargs)
 
-    async def treinar(self):
-        # Pegando dados para a rede
-        data = await loader.carregar_todas_imagens("src/files/X_png")
-        labels = await loader.carregar_todos_rotulos("src/files/Y_letra.txt")
-
-        if len(data) != len(labels):
-            raise ValueError("Dados e rotulos com tamanhos diferentes")
-
+    async def treinar(self, imgs_source: str, label_source: str):
+        # Obtendo dados para treinamento
+        data, labels = await self.obter_dados_treinamento(imgs_source, label_source)
+        
         porcentagem_treino = 0.75  # porcentagem de dados para treinamento
         porcentagem_validacao = 0.1  # porcentagem de dados para validação
         cutoff_training = int(porcentagem_treino * len(data))
@@ -139,7 +117,7 @@ class NeuralNetwork:
         epochs_without_improvement = 0
 
         # Treinando a rede
-        max_epochs = 80
+        max_epochs = 10
         for epoch in range(max_epochs):
             await self.do_one_epoch(inputs=train_data, expected_outputs=train_labels)
             await self.update_learning_rate(
@@ -159,7 +137,8 @@ class NeuralNetwork:
                 if resultado == esperado:
                     correct_outputs += 1
 
-            accuracy = correct_outputs / len(validation_labels)
+            accuracy = (correct_outputs / len(validation_labels)) if len(validation_labels) != 0 else len(validation_labels)
+
             if accuracy > best_validation_accuracy:
                 best_hidden_weights = self.hidden_layer.weights
                 best_output_weights = self.output_layer.weights
@@ -205,3 +184,13 @@ class NeuralNetwork:
         print(f"acurácia final: {correct_outputs / len(test_labels)}")
 
         return 1
+
+    async def obter_dados_treinamento(self, imgs_source: str, label_source: str) -> Any:
+        # Obtendo dados para o treinamento
+        data  = await loader.carregar_todas_imagens(imgs_source)
+        labels = await loader.carregar_todos_rotulos(label_source)
+        # Verificando se os tamanhos são diferentes
+        if len(data) != len(labels):
+            raise ValueError("Dados e rotulos com tamanhos diferentes")
+        # Retornando dados para treinamento
+        return data, labels

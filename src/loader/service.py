@@ -40,7 +40,6 @@ class Loader:
         with open(path, "r") as file:
             for line in file:
                 labels.append(line.strip())
-
         return await Loader.converter_rotulos(labels)
 
     @staticmethod

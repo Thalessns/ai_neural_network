@@ -8,7 +8,7 @@ from src.neuron.functions import (
 )
 
 
-class Utils():
+class Utils:
 
     ACTIVATION_FUNCIONS = inspect.getmembers(ActivationFunctions, predicate=inspect.isfunction)
     ACTIVATION_DICT = {nome: funcao for nome, funcao in ACTIVATION_FUNCIONS}
@@ -29,7 +29,12 @@ class Utils():
             raise Exception(f"Função de learning rate {function} não existe!")
         return self.LEARNING_DICT[function]
 
-    def get_derivative_function(self, function: Callable) -> Callable:
+    @staticmethod
+    async def clip(value: float, min_value: float, max_value: float) -> float:
+        return max(min(value, max_value), min_value)
+
+    @staticmethod
+    def get_derivative_function(function: Callable) -> Callable:
         map_function_to_derivative = {
             activation_functions.relu: activation_functions.derivative_relu,
             activation_functions.elu: activation_functions.derivative_elu,

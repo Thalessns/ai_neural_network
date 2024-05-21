@@ -17,7 +17,7 @@ class Loader:
         # Obtendo pixels em uma lista de tuplas (x, y)
         pixels_raw = list(image.getdata()) 
         threshold = 128  # Valor de limiar para converter em binário
-        pixels = [-1 if pixel < threshold else 1 for pixel in pixels_raw]
+        pixels = [0 if pixel < threshold else 1 for pixel in pixels_raw]
         # Converter as listas de pixels em uma matriz 2D
         data = [pixels[i * largura:(i + 1) * largura] for i in range(altura)]
         # Transformando em uma lista de valores
@@ -49,7 +49,7 @@ class Loader:
         resultado = []
         for letter in labels:
             letter = letter.lower()
-            binario = [-1] * 26
+            binario = [0] * 26
             binario[ord(letter) - ord("a")] = 1
             resultado.append(binario)
 

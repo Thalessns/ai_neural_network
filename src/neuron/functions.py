@@ -1,6 +1,4 @@
 import math
-import inspect
-from typing import List, Callable
 
 
 class LearningRateFunctions:
@@ -27,7 +25,16 @@ class LearningRateFunctions:
 
 decay_functions = LearningRateFunctions()
 
+
 class ActivationFunctions:
+
+    @staticmethod
+    async def softmax(inputs: list[float]) -> list[float]:
+        # Evita overflow
+        maximo = max(inputs)
+        exps = [math.exp(element - maximo) for element in inputs]
+        soma = sum(exps)
+        return [value / soma for value in exps]
 
     @staticmethod
     async def relu(x: float) -> float:
@@ -164,5 +171,3 @@ class ActivationFunctions:
 
 
 activation_functions = ActivationFunctions()
-
-

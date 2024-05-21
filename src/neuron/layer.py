@@ -1,5 +1,7 @@
 import random
 from typing import Callable
+
+from src.neuron.functions import ActivationFunctions
 from src.neuron.utils import utils
 
 
@@ -63,11 +65,13 @@ class HiddenLayer(Camada):
 
         gradientes = [erro_neuronio * derivada for erro_neuronio, derivada in zip(erros_output, derivadas)]
 
+        gradientes = [await utils.clip(gradiente, -1, 1) for gradiente in gradientes]
+
         delta_pesos = []
         delta_biases = []
         for gradiente in gradientes:
-            delta_pesos.append([learning_rate * gradiente * yi for yi in inputs])
-            delta_biases.append(learning_rate * gradiente)
+            delta_pesos.append([-learning_rate * gradiente * yi for yi in inputs])
+            delta_biases.append(-learning_rate * gradiente)
 
         # atualização de pesos
         for neuron in range(len(self.weights)):
@@ -83,13 +87,12 @@ class OutputLayer(Camada):
 
     async def feed_forward(self, inputs: list[float]) -> list[float]:
         """Realiza a operação de feed forward e retorna a saída da camada"""
-        resultado = await super().feed_forward(inputs)
-        # binarizando a saída
-        for i in range(len(resultado)):
-            if resultado[i] > 0.2:
-                resultado[i] = 1
-            else:
-                resultado[i] = -1
+        resultado = []
+        for neuron_weight, bias in zip(self.weights, self.biases):
+            soma_ponderada = sum(weight * yi for weight, yi in zip(neuron_weight, inputs)) + bias
+            resultado.append(soma_ponderada)
+        resultado = await ActivationFunctions.softmax(resultado)
+
         return resultado
 
     async def back_propagation(
@@ -107,28 +110,21 @@ class OutputLayer(Camada):
         if len(outputs) != len(expected_outputs):
             raise ValueError("Listas de saída com tamanhos diferentes")
 
-        erros = [expected_output - output for expected_output, output in zip(expected_outputs, outputs)]
+        erros = [output - expected_output for output, expected_output in zip(outputs, expected_outputs)]
 
-        if len(self.output_pre_ativacao) != len(erros):
-            raise ValueError("erros e erros pre ativação com tamanhos diferentes")
+        erros = [await utils.clip(erro, -1, 1) for erro in erros]
 
-        # Calculando derivadas da função de ativação sobre a soma ponderada
-        derivadas = [await self.derivative_function(vj) for vj in self.output_pre_ativacao]
-
-        # Calculando o gradiente para cada unidade de saída
-        gradientes = [erro_neuronio * derivada for erro_neuronio, derivada in zip(erros, derivadas)]
-
-        # Calculando a variação nos pesos
         delta_pesos = []
         delta_biases = []
-        for gradiente in gradientes:
-            delta_pesos.append([learning_rate * gradiente * yi for yi in inputs])
-            delta_biases.append(learning_rate * gradiente)
+        for gradiente in erros:
+            delta_pesos.append([-learning_rate * gradiente * yi for yi in inputs])
+            delta_biases.append(-learning_rate * gradiente)
 
         # Calculando o erro da camada anterior
-        erros_camada_anterior = []
-        for j in range(len(inputs)):
-            erros_camada_anterior.append(sum(gradientes[k] * self.weights[k][j] for k in range(self.num_neurons)))
+        erros_camada_anterior = [0] * len(inputs)
+        for i in range(len(inputs)):
+            for k in range(self.num_neurons):
+                erros_camada_anterior[i] += erros[k] * self.weights[k][i]
 
         # alteração de pesos
         for neuron in range(len(self.weights)):

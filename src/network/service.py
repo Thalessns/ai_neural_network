@@ -3,6 +3,7 @@ from typing import List, Any, Callable
 from src.loader.service import loader
 from src.neuron.layer import InputLayer, HiddenLayer, OutputLayer
 from src.network.schemas import TreinamentoInput
+from src.network.utils import gerar_grafico
 from src.database.service import database
 
 
@@ -116,6 +117,8 @@ class NeuralNetwork:
         best_validation_accuracy = 0
         epochs_without_improvement = 0
 
+        acuracias = list()
+
         # Treinando a rede
         max_epochs = 10
         for epoch in range(max_epochs):
@@ -138,6 +141,7 @@ class NeuralNetwork:
                     correct_outputs += 1
 
             accuracy = (correct_outputs / len(validation_labels)) if len(validation_labels) != 0 else len(validation_labels)
+            acuracias.append(accuracy)
 
             if accuracy > best_validation_accuracy:
                 best_hidden_weights = self.hidden_layer.weights
@@ -182,6 +186,11 @@ class NeuralNetwork:
                 correct_outputs += 1
 
         print(f"acurácia final: {correct_outputs / len(test_labels)}")
+
+        epocas = [i+1 for i in range(0, len(acuracias))]
+
+        # Gerando gráfico de acuracias
+        gerar_grafico(epocas, acuracias, "Época", "Acurácia", "Acurácia por época")
 
         return 1
 

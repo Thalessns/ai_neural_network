@@ -1,9 +1,9 @@
 from typing import Callable
-
 from src.loader.service import Loader
 from src.neuron.layer import InputLayer, HiddenLayer, OutputLayer
 from src.network.schemas import TreinamentoInput
 from src.database.service import database
+from src.network.utils import gerar_grafico
 
 
 class NeuralNetwork:
@@ -37,6 +37,22 @@ class NeuralNetwork:
             activation_function=activation_functions[1],
             len_input=hidden_size
         )
+
+    @staticmethod
+    async def obter_dados_treinamento(
+            imgs_source: str,
+            label_source: str) \
+            -> tuple[list[list[float]], list[list[float]]]:
+        """Obtém os dados e rótulos para treinamento da rede neural"""
+
+        # Obtendo dados para o treinamento
+        data = await Loader.carregar_todas_imagens(imgs_source)
+        labels = await Loader.carregar_todos_rotulos(label_source)
+        # Verificando se os tamanhos são diferentes
+        if len(data) != len(labels):
+            raise ValueError("Dados e rotulos com tamanhos diferentes")
+        # Retornando dados para treinamento
+        return data, labels
 
     @staticmethod
     async def compute_mean_squared_error(
@@ -114,7 +130,7 @@ class NeuralNetwork:
 
     async def treinar(self, imgs_source: str, label_source: str):
         # Pegando dados para a rede
-        data, labels = await self.obter_dados_treinamento(imgs_source, label_source)
+        data, labels = await NeuralNetwork.obter_dados_treinamento(imgs_source, label_source)
 
         if len(data) != len(labels):
             raise ValueError("Dados e rotulos com tamanhos diferentes")
@@ -140,6 +156,8 @@ class NeuralNetwork:
         best_validation_accuracy = 0
         epochs_without_improvement = 0
 
+        acuracias = list()
+
         # Treinando a rede
         max_epochs = 100
         for epoch in range(max_epochs):
@@ -162,6 +180,8 @@ class NeuralNetwork:
                     correct_outputs += 1
 
             accuracy = correct_outputs / len(validation_labels)
+            acuracias.append(accuracy)
+
             if accuracy > best_validation_accuracy:
                 best_hidden_weights = self.hidden_layer.weights
                 best_output_weights = self.output_layer.weights
@@ -206,14 +226,10 @@ class NeuralNetwork:
 
         print(f"acurácia final: {correct_outputs / len(test_labels)}")
 
+        epocas = [i + 1 for i in range(0, len(acuracias))]
+
+        # Gerando gráfico de acuracias
+        gerar_grafico(epocas, acuracias, "Época", "Acurácia", "Acurácia por época")
+
         return 1
 
-    async def obter_dados_treinamento(self, imgs_source: str, label_source: str) -> Any:
-        # Obtendo dados para o treinamento
-        data  = await Loader.carregar_todas_imagens(imgs_source)
-        labels = await Loader.carregar_todos_rotulos(label_source)
-        # Verificando se os tamanhos são diferentes
-        if len(data) != len(labels):
-            raise ValueError("Dados e rotulos com tamanhos diferentes")
-        # Retornando dados para treinamento
-        return data, labels

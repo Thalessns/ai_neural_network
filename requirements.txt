@@ -4,3 +4,5 @@ fastapi>=0.110.2
 uvicorn>=0.29.0
 pillow>=10.2.0
 aiosqlite
+matplotlib>=3.8.3
+pydantic>=2.7.1

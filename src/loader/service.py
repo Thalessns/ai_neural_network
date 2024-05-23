@@ -54,5 +54,3 @@ class Loader:
             resultado.append(binario)
 
         return resultado
-
-loader = Loader()

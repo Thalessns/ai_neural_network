@@ -1,7 +1,5 @@
 import random
 from typing import Callable
-
-from src.neuron.functions import ActivationFunctions
 from src.neuron.utils import utils
 
 
@@ -65,7 +63,8 @@ class HiddenLayer(Camada):
 
         gradientes = [erro_neuronio * derivada for erro_neuronio, derivada in zip(erros_output, derivadas)]
 
-        gradientes = [await utils.clip(gradiente, -1, 1) for gradiente in gradientes]
+        # clipping do gradiente
+        # gradientes = [await utils.clip(gradiente, -1, 1) for gradiente in gradientes]
 
         delta_pesos = []
         delta_biases = []
@@ -87,12 +86,7 @@ class OutputLayer(Camada):
 
     async def feed_forward(self, inputs: list[float]) -> list[float]:
         """Realiza a operação de feed forward e retorna a saída da camada"""
-        resultado = []
-        for neuron_weight, bias in zip(self.weights, self.biases):
-            soma_ponderada = sum(weight * yi for weight, yi in zip(neuron_weight, inputs)) + bias
-            resultado.append(soma_ponderada)
-        resultado = await ActivationFunctions.softmax(resultado)
-
+        resultado = await super().feed_forward(inputs)
         return resultado
 
     async def back_propagation(
@@ -112,11 +106,18 @@ class OutputLayer(Camada):
 
         erros = [output - expected_output for output, expected_output in zip(outputs, expected_outputs)]
 
-        erros = [await utils.clip(erro, -1, 1) for erro in erros]
+        # Calculando derivadas da função de ativação sobre a soma ponderada
+        derivadas = [await self.derivative_function(vj) for vj in self.output_pre_ativacao]
+
+        # Calculando o gradiente para cada unidade de saída
+        gradientes = [erro_neuronio * derivada for erro_neuronio, derivada in zip(erros, derivadas)]
+
+        # clipping do gradiente
+        # gradientes = [await utils.clip(gradiente, -1, 1) for gradiente in gradientes]
 
         delta_pesos = []
         delta_biases = []
-        for gradiente in erros:
+        for gradiente in gradientes:
             delta_pesos.append([-learning_rate * gradiente * yi for yi in inputs])
             delta_biases.append(-learning_rate * gradiente)
 

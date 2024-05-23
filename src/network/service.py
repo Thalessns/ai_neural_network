@@ -1,6 +1,6 @@
 from typing import Callable
 
-from src.loader.service import loader
+from src.loader.service import Loader
 from src.neuron.layer import InputLayer, HiddenLayer, OutputLayer
 from src.network.schemas import TreinamentoInput
 from src.database.service import database
@@ -67,10 +67,8 @@ class NeuralNetwork:
         hidden_outputs = await self.hidden_layer.feed_forward(hidden_inputs)
         output = await self.output_layer.feed_forward(hidden_outputs)
 
-        print(f"output antes do one hot encoding: {output}")
         # use max to transform output in one hot encoding
         output = [1 if value == max(output) else 0 for value in output]
-        print(f"output depois do one hot encoding: {output}")
 
         return output
 
@@ -116,8 +114,8 @@ class NeuralNetwork:
 
     async def treinar(self):
         # Pegando dados para a rede
-        data = await loader.carregar_todas_imagens("src/files/X_png")
-        labels = await loader.carregar_todos_rotulos("src/files/Y_letra.txt")
+        data = await Loader.carregar_todas_imagens("src/files/X_png")
+        labels = await Loader.carregar_todos_rotulos("src/files/Y_letra.txt")
 
         if len(data) != len(labels):
             raise ValueError("Dados e rotulos com tamanhos diferentes")
@@ -144,7 +142,7 @@ class NeuralNetwork:
         epochs_without_improvement = 0
 
         # Treinando a rede
-        max_epochs = 200
+        max_epochs = 100
         for epoch in range(max_epochs):
             await self.do_one_epoch(inputs=train_data, expected_outputs=train_labels)
             await self.update_learning_rate(

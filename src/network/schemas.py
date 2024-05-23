@@ -9,7 +9,15 @@ class NetworkInput(BaseModel):
     initial_learning_rate: float
     learning_rate_function: str
     activation_functions: Dict[str, str]
-    
+    imgs_source: str
+    label_source: str
+
+
+class NetworkEpochInput(BaseModel):
+    epoca_id: int
+    imgs_source: str
+    label_source: str
+
 
 class TreinamentoInput(BaseModel):
     input_size:            int
@@ -21,6 +29,7 @@ class TreinamentoInput(BaseModel):
     activation_functions:  List[str]
     learning_rate_function: str
     accuracy: float
+
 
 class Treinamento(TreinamentoInput):
     epoca: int

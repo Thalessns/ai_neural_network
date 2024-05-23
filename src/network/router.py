@@ -22,4 +22,4 @@ async def test(input: NetworkInput) -> Any:
         initial_learning_rate=input.initial_learning_rate,
         learning_rate_function=learning_rate_function
     )
-    return await rede.treinar()
+    return await rede.treinar(input.imgs_source, input.label_source)

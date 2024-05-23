@@ -112,10 +112,9 @@ class NeuralNetwork:
 
         self.learning_rate = await decay_function(**kwargs)
 
-    async def treinar(self):
+    async def treinar(self, imgs_source: str, label_source: str):
         # Pegando dados para a rede
-        data = await Loader.carregar_todas_imagens("src/files/X_png")
-        labels = await Loader.carregar_todos_rotulos("src/files/Y_letra.txt")
+        data, labels = await self.obter_dados_treinamento(imgs_source, label_source)
 
         if len(data) != len(labels):
             raise ValueError("Dados e rotulos com tamanhos diferentes")
@@ -208,3 +207,13 @@ class NeuralNetwork:
         print(f"acurácia final: {correct_outputs / len(test_labels)}")
 
         return 1
+
+    async def obter_dados_treinamento(self, imgs_source: str, label_source: str) -> Any:
+        # Obtendo dados para o treinamento
+        data  = await Loader.carregar_todas_imagens(imgs_source)
+        labels = await Loader.carregar_todos_rotulos(label_source)
+        # Verificando se os tamanhos são diferentes
+        if len(data) != len(labels):
+            raise ValueError("Dados e rotulos com tamanhos diferentes")
+        # Retornando dados para treinamento
+        return data, labels

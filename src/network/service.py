@@ -1,9 +1,13 @@
 from typing import Callable
+
+from matplotlib import pyplot as plt
+
 from src.loader.service import Loader
 from src.neuron.layer import InputLayer, HiddenLayer, OutputLayer
 from src.network.schemas import TreinamentoInput
 from src.database.service import database
 from src.network.utils import gerar_grafico
+import random
 
 
 class NeuralNetwork:
@@ -84,7 +88,10 @@ class NeuralNetwork:
         output = await self.output_layer.feed_forward(hidden_outputs)
 
         # use max to transform output in one hot encoding
-        output = [1 if value == max(output) else 0 for value in output]
+        maximo = max(output)
+        output = [1 if value == maximo else 0 for value in output]
+
+        #output = [1 if value >= 0.75 else 0 for value in output]
 
         return output
 
@@ -112,6 +119,11 @@ class NeuralNetwork:
     async def do_one_epoch(self, inputs: list[list[float]], expected_outputs: list[list[float]]) -> None:
         """Treina uma época da rede neural"""
 
+        # Embaralhando os dados sem alterar a ordem
+        c = list(zip(inputs, expected_outputs))
+        random.shuffle(c)
+        inputs, expected_outputs = zip(*c)
+
         if len(inputs) != len(expected_outputs):
             raise ValueError("Listas de inputs e outputs com tamanhos diferentes")
 
@@ -135,8 +147,13 @@ class NeuralNetwork:
         if len(data) != len(labels):
             raise ValueError("Dados e rotulos com tamanhos diferentes")
 
-        porcentagem_treino = 0.75  # porcentagem de dados para treinamento
-        porcentagem_validacao = 0.1  # porcentagem de dados para validação
+        # Embaralhando os dados sem alterar a ordem
+        c = list(zip(data, labels))
+        random.shuffle(c)
+        data, labels = zip(*c)
+
+        porcentagem_treino = 0.6  # porcentagem de dados para treinamento
+        porcentagem_validacao = 0.3  # porcentagem de dados para validação
         cutoff_training = int(porcentagem_treino * len(data))
         cutoff_validation = cutoff_training + int(porcentagem_validacao * len(data))
         train_data = data[:cutoff_training]
@@ -155,11 +172,13 @@ class NeuralNetwork:
         best_output_weights = self.output_layer.weights
         best_validation_accuracy = 0
         epochs_without_improvement = 0
+        best_training_accuracy = 0
 
         acuracias = list()
+        train_acuracias = list()
 
         # Treinando a rede
-        max_epochs = 100
+        max_epochs = 1000
         for epoch in range(max_epochs):
             await self.do_one_epoch(inputs=train_data, expected_outputs=train_labels)
             await self.update_learning_rate(
@@ -182,13 +201,33 @@ class NeuralNetwork:
             accuracy = correct_outputs / len(validation_labels)
             acuracias.append(accuracy)
 
+            output_treino = []
+            for entrada in train_data:
+                resultado = await self.get_output(entrada=entrada)
+                output_treino.append(resultado)
+
+            correct_train_outputs = 0
+            for resultado, esperado in zip(output_treino, train_labels):
+                if resultado == esperado:
+                    correct_train_outputs += 1
+
+            train_accuracy = correct_train_outputs / len(train_labels)
+            train_acuracias.append(train_accuracy)
+
+            print(f"Época: {epoch + 1} | Acurácia treino: {train_accuracy} | Acurácia validação: {accuracy}, Taxa de aprendizado: {self.learning_rate}")
             if accuracy > best_validation_accuracy:
                 best_hidden_weights = self.hidden_layer.weights
                 best_output_weights = self.output_layer.weights
                 best_validation_accuracy = accuracy
+                epochs_without_improvement = 0
+
+            elif train_accuracy > best_training_accuracy:
+                best_training_accuracy = train_accuracy
+                epochs_without_improvement = 0
+
             else:
                 epochs_without_improvement += 1
-                if epochs_without_improvement == 20:
+                if epochs_without_improvement == 100:
                     print(f"Parando treinamento na época {epoch}")
                     print(f"Melhor acurácia de validação: {best_validation_accuracy}")
                     print(f"acurácia atual: {accuracy}")
@@ -210,8 +249,8 @@ class NeuralNetwork:
         )
 
         # Testando a rede
-        self.hidden_layer.weights = best_hidden_weights
-        self.output_layer.weights = best_output_weights
+        #self.hidden_layer.weights = best_hidden_weights
+        #self.output_layer.weights = best_output_weights
 
         outputs = []
         for entrada in test_data:
@@ -220,16 +259,21 @@ class NeuralNetwork:
 
         correct_outputs = 0
         for resultado, esperado in zip(outputs, test_labels):
-            print(f"Resultado: {resultado} | Esperado: {esperado}")
             if resultado == esperado:
                 correct_outputs += 1
 
+        print(f"melhor acurácia de treino: {best_training_accuracy}")
+        print(f"melhor acurácia de validação: {best_validation_accuracy}")
         print(f"acurácia final: {correct_outputs / len(test_labels)}")
 
         epocas = [i + 1 for i in range(0, len(acuracias))]
 
         # Gerando gráfico de acuracias
-        gerar_grafico(epocas, acuracias, "Época", "Acurácia", "Acurácia por época")
+        f = gerar_grafico(epocas, acuracias, "Época", "Acurácia", "Acurácia por época")
+
+        g = gerar_grafico(epocas, train_acuracias, "Época", "Acurácia", "Acurácia de treino por época")
+
+        plt.show()
 
         return 1
 

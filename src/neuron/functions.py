@@ -9,7 +9,7 @@ class LearningRateFunctions:
 
     @staticmethod
     async def exponential(**kwargs) -> float:
-        decay_rate = 0.1
+        decay_rate = 0.01
         return kwargs["current_learning_rate"] * math.exp(-decay_rate * kwargs["epoch"])
 
     @staticmethod
@@ -21,7 +21,7 @@ class LearningRateFunctions:
     async def linear(**kwargs) -> float:
         decay_rate = kwargs["epoch"] / kwargs["max_epochs"]
         return kwargs["initial_learning_rate"] * (1 - decay_rate)
-    
+
 
 decay_functions = LearningRateFunctions()
 
@@ -88,7 +88,7 @@ class ActivationFunctions:
         elif x >= 3:
             return x
         return (x * (x + 3)) / 6
-    
+
     @staticmethod
     async def derivative_hard_swish(x: float) -> float:
         if x < -3:
@@ -103,7 +103,8 @@ class ActivationFunctions:
 
     @staticmethod
     async def derivative_sigmoid(x: float) -> float:
-        return math.exp(-x) / math.pow((1 + math.exp(-x)), 2)
+        exp_neg = math.exp(-x)
+        return exp_neg / math.pow((1 + exp_neg), 2)
 
     @staticmethod
     async def soft_sign(x: float) -> float:
@@ -133,7 +134,7 @@ class ActivationFunctions:
     async def derivative_hard_sigmoid(x: float) -> float:
         if x <= 3 or x > 3:
             return 0
-        return 1/6
+        return 1 / 6
 
     @staticmethod
     async def tanh_shrink(x: float) -> float:

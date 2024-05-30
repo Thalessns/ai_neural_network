@@ -9,13 +9,13 @@ class Loader:
     async def carregar_imagem(path: str) -> List[int]:
         """Carregar imagem e converter para binário"""
         # Abrindo imagem
-        image = Image.open(path) 
+        image = Image.open(path)
         # Obtendo dimensões
-        largura, altura = image.size 
+        largura, altura = image.size
         # Convertendo para escala de cinza
-        image = image.convert("L") 
+        image = image.convert("L")
         # Obtendo pixels em uma lista de tuplas (x, y)
-        pixels_raw = list(image.getdata()) 
+        pixels_raw = list(image.getdata())
         threshold = 128  # Valor de limiar para converter em binário
         pixels = [0 if pixel < threshold else 1 for pixel in pixels_raw]
         # Converter as listas de pixels em uma matriz 2D
@@ -54,3 +54,8 @@ class Loader:
             resultado.append(binario)
 
         return resultado
+
+    @staticmethod
+    def converter_binario_rotulo(binario: List[int]) -> str:
+        """Converte binário para rótulo"""
+        return chr(binario.index(1) + ord("a"))

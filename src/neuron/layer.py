@@ -125,7 +125,7 @@ class OutputLayer(Camada):
         erros_camada_anterior = [0] * len(inputs)
         for i in range(len(inputs)):
             for k in range(self.num_neurons):
-                erros_camada_anterior[i] += erros[k] * self.weights[k][i]
+                erros_camada_anterior[i] += gradientes[k] * self.weights[k][i]
 
         # alteração de pesos
         for neuron in range(len(self.weights)):

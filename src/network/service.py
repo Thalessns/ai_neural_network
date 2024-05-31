@@ -19,12 +19,16 @@ class NeuralNetwork:
             output_size: int,
             activation_functions: list[Callable],
             learning_rate_function: Callable,
-            initial_learning_rate: float
+            initial_learning_rate: float,
+            dropout_rate: float,
+            max_epochs: int
     ) -> None:
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.activation_functions = activation_functions
+        self.dropout_rate = dropout_rate
+        self.max_epochs = max_epochs
 
         self.initial_learning_rate = initial_learning_rate  # usada para o decaimento da taxa de aprendizado
         self.learning_rate = initial_learning_rate  # usada para o treinamento
@@ -80,6 +84,20 @@ class NeuralNetwork:
 
         return erro_quadratico_medio
 
+    @staticmethod
+    async def apply_dropout(hidden_layer_output: list[float], dropout_rate: float) -> list[float]:
+        """Aplica dropout na camada oculta"""
+        if dropout_rate < 0 or dropout_rate > 1:
+            raise ValueError("Taxa de dropout deve estar entre 0 e 1")
+
+        if dropout_rate == 0:
+            return hidden_layer_output
+
+        dropout_mask = [1 if random.random() > dropout_rate else 0 for _ in hidden_layer_output]
+
+        # Aplica dropout e ajusta a saída para compensar a redução de neurônios (inverted dropout)
+        return [(value * mask) / (1.0 - dropout_rate) for value, mask in zip(hidden_layer_output, dropout_mask)]
+
     async def get_output(self, entrada: list[float]) -> list[int]:
         """Dado uma entrada, calcula a saída da rede neural"""
 
@@ -100,7 +118,8 @@ class NeuralNetwork:
         # Feed forward
         hidden_inputs = await self.input_layer.feed_forward(inputs)
         hidden_outputs = await self.hidden_layer.feed_forward(hidden_inputs)
-        outputs = await self.output_layer.feed_forward(hidden_outputs)
+        hidden_outputs_after_dropout = await self.apply_dropout(hidden_outputs, self.dropout_rate)
+        outputs = await self.output_layer.feed_forward(hidden_outputs_after_dropout)
 
         # Back propagation
         hidden_error = await self.output_layer.back_propagation(
@@ -129,11 +148,11 @@ class NeuralNetwork:
         for entrada, expected in zip(inputs, expected_outputs):
             await self.train_one_sample(inputs=entrada, expected_outputs=expected)
 
-    async def update_learning_rate(self, max_epochs: int, epoch: int, decay_function: Callable) -> None:
+    async def update_learning_rate(self, current_epoch: int, decay_function: Callable) -> None:
         """Atualiza a taxa de aprendizado baseado em uma função de decaimento"""
         kwargs = {
-            "max_epochs": max_epochs,
-            "epoch": epoch,
+            "max_epochs": self.max_epochs,
+            "epoch": current_epoch,
             "initial_learning_rate": self.initial_learning_rate,
             "current_learning_rate": self.learning_rate}
 
@@ -174,12 +193,10 @@ class NeuralNetwork:
         validation_loss = list()
 
         # Treinando a rede
-        max_epochs = 1000
-        for epoch in range(max_epochs):
+        for epoch in range(self.max_epochs):
             await self.do_one_epoch(inputs=train_data, expected_outputs=train_labels)
             await self.update_learning_rate(
-                max_epochs=max_epochs,
-                epoch=epoch,
+                current_epoch=epoch,
                 decay_function=self.learning_rate_function
             )
 
@@ -216,19 +233,19 @@ class NeuralNetwork:
             print(
                 f"Época: {epoch + 1} | Acurácia treino: {train_accuracy} | Acurácia validação: {accuracy}, "
                 f"Taxa de aprendizado: {self.learning_rate}")
+
+            if train_accuracy > best_training_accuracy:
+                best_training_accuracy = train_accuracy
+
             if accuracy > best_validation_accuracy:
                 best_hidden_weights = self.hidden_layer.weights
                 best_output_weights = self.output_layer.weights
                 best_validation_accuracy = accuracy
                 epochs_without_improvement = 0
-
-            elif train_accuracy > best_training_accuracy:
-                best_training_accuracy = train_accuracy
-
             else:
                 epochs_without_improvement += 1
                 if epochs_without_improvement == 40:
-                    print(f"Parando treinamento na época {epoch}")
+                    print(f"Parando treinamento na época {epoch + 1}")
                     print(f"Melhor acurácia de validação: {best_validation_accuracy}")
                     print(f"acurácia atual: {accuracy}")
                     break

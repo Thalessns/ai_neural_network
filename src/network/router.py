@@ -20,6 +20,8 @@ async def test(input: NetworkInput) -> Any:
         output_size=input.output_size, 
         activation_functions=activation_functions,
         initial_learning_rate=input.initial_learning_rate,
-        learning_rate_function=learning_rate_function
+        learning_rate_function=learning_rate_function,
+        dropout_rate=input.dropout_rate,
+        max_epochs=input.max_epochs
     )
     return await rede.treinar(input.imgs_source, input.label_source)

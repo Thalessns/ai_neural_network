@@ -6,6 +6,8 @@ class NetworkInput(BaseModel):
     input_size: int
     hidden_size: int
     output_size: int
+    dropout_rate: float
+    max_epochs: int
     initial_learning_rate: float
     learning_rate_function: str
     activation_functions: Dict[str, str]

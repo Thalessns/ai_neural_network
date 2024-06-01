@@ -3,6 +3,7 @@ from typing import Dict, List
 
 
 class NetworkInput(BaseModel):
+    performance_evaluation: str
     input_size: int
     hidden_size: int
     output_size: int

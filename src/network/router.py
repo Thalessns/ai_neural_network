@@ -24,4 +24,8 @@ async def test(input: NetworkInput) -> Any:
         dropout_rate=input.dropout_rate,
         max_epochs=input.max_epochs
     )
-    return await rede.treinar(input.imgs_source, input.label_source)
+    if input.performance_evaluation == "holdout":
+        return await rede.train_holdout(input.imgs_source, input.label_source)
+    if input.performance_evaluation == "cross_validation":
+        return await rede.train_cross_validation(input.imgs_source, input.label_source)
+    return {"error": "Model evaluation not found"}

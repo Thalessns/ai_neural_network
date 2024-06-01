@@ -1,13 +1,13 @@
-from typing import Callable
-
+from typing import Callable, Union
 from matplotlib import pyplot as plt
-
 from src.database.service import database
 from src.loader.service import Loader
 from src.network.schemas import TreinamentoInput
 from src.neuron.layer import InputLayer, HiddenLayer, OutputLayer
-from src.network.utils import gerar_grafico, distribui_valores
+from src.network.utils import gerar_grafico, distribui_valores, imprimir_matriz_confusao
 import random
+
+Number = Union[int, float]
 
 
 class NeuralNetwork:
@@ -50,7 +50,7 @@ class NeuralNetwork:
     async def obter_dados_treinamento(
             imgs_source: str,
             label_source: str) \
-            -> tuple[list[list[float]], list[list[float]]]:
+            -> tuple[list[list[Number]], list[list[Number]]]:
         """Obtém os dados e rótulos para treinamento da rede neural"""
 
         # Obtendo dados para o treinamento
@@ -137,10 +137,7 @@ class NeuralNetwork:
     async def do_one_epoch(self, inputs: list[list[float]], expected_outputs: list[list[float]]) -> None:
         """Treina uma época da rede neural"""
 
-        # Embaralhando os dados sem alterar a ordem
-        c = list(zip(inputs, expected_outputs))
-        random.shuffle(c)
-        inputs, expected_outputs = zip(*c)
+        inputs, expected_outputs = await NeuralNetwork.shuffle_data(inputs, expected_outputs)
 
         if len(inputs) != len(expected_outputs):
             raise ValueError("Listas de inputs e outputs com tamanhos diferentes")
@@ -158,19 +155,59 @@ class NeuralNetwork:
 
         self.learning_rate = await decay_function(**kwargs)
 
-    async def treinar(self, imgs_source: str, label_source: str):
+    @staticmethod
+    async def create_k_folds(
+            data: list[list[Number]],
+            labels: list[list[Number]],
+            k: int
+    ) -> tuple[list[list[list[Number]]], list[list[list[Number]]]]:
+        """Cria k folds para cross validation"""
+        data_folds = []
+        labels_folds = []
+        fold_size = len(data) // k
+        for i in range(k):
+            data_folds.append(data[i * fold_size:(i + 1) * fold_size])
+            labels_folds.append(labels[i * fold_size:(i + 1) * fold_size])
+        return data_folds, labels_folds
+
+    @staticmethod
+    async def shuffle_data(
+            array1: list[list[Number]],
+            array2: list[list[Number]]
+    ) -> tuple[list[list], list[list[Number]]]:
+        """Embaralha os dados sem alterar a relação entre os arrays """
+        c = list(zip(array1, array2))
+        random.shuffle(c)
+        array1, array2 = zip(*c)
+        return array1, array2
+
+    @staticmethod
+    async def get_accuracy(outputs: list[list[Number]], expected_outputs: list[list[Number]]) -> float:
+        """Calcula a acurácia da rede neural"""
+        if len(outputs) != len(expected_outputs):
+            raise ValueError("Listas de outputs e esperados com tamanhos diferentes")
+
+        if len(outputs) == 0:
+            raise ValueError("Listas vazias")
+
+        correct_outputs = 0
+        for output, expected_output in zip(outputs, expected_outputs):
+            if output == expected_output:
+                correct_outputs += 1
+
+        return correct_outputs / len(outputs)
+
+    async def train_holdout(self, imgs_source: str, label_source: str):
+        """Treina a rede neural usando holdout"""
         # Pegando dados para a rede
         data, labels = await NeuralNetwork.obter_dados_treinamento(imgs_source, label_source)
 
         if len(data) != len(labels):
             raise ValueError("Dados e rotulos com tamanhos diferentes")
 
-        # Embaralhando os dados sem alterar a ordem
-        c = list(zip(data, labels))
-        random.shuffle(c)
-        data, labels = zip(*c)
+        data, labels = await NeuralNetwork.shuffle_data(data, labels)
 
-        porcentagem_treino = 0.75  # porcentagem de dados para treinamento
+        porcentagem_treino = 0.66  # porcentagem de dados para treinamento
         porcentagem_validacao = 0.15  # porcentagem de dados para validação
 
         # Dividindo os dados em treino, validação e teste
@@ -183,6 +220,8 @@ class NeuralNetwork:
 
         best_hidden_weights = self.hidden_layer.weights
         best_output_weights = self.output_layer.weights
+        best_hidden_biases = self.hidden_layer.biases
+        best_output_biases = self.output_layer.biases
         best_validation_accuracy = 0
         epochs_without_improvement = 0
         best_training_accuracy = 0
@@ -206,12 +245,7 @@ class NeuralNetwork:
                 resultado = await self.get_output(entrada=entrada)
                 outputs.append(resultado)
 
-            correct_outputs = 0
-            for resultado, esperado in zip(outputs, validation_labels):
-                if resultado == esperado:
-                    correct_outputs += 1
-
-            accuracy = correct_outputs / len(validation_labels)
+            accuracy = await self.get_accuracy(outputs, validation_labels)
             acuracias.append(accuracy)
 
             output_treino = []
@@ -219,12 +253,7 @@ class NeuralNetwork:
                 resultado = await self.get_output(entrada=entrada)
                 output_treino.append(resultado)
 
-            correct_train_outputs = 0
-            for resultado, esperado in zip(output_treino, train_labels):
-                if resultado == esperado:
-                    correct_train_outputs += 1
-
-            train_accuracy = correct_train_outputs / len(train_labels)
+            train_accuracy = await self.get_accuracy(output_treino, train_labels)
             train_acuracias.append(train_accuracy)
 
             training_loss.append(await self.compute_mean_squared_error(output_treino, train_labels))
@@ -239,12 +268,14 @@ class NeuralNetwork:
 
             if accuracy > best_validation_accuracy:
                 best_hidden_weights = self.hidden_layer.weights
+                best_hidden_biases = self.hidden_layer.biases
                 best_output_weights = self.output_layer.weights
+                best_output_biases = self.output_layer.biases
                 best_validation_accuracy = accuracy
                 epochs_without_improvement = 0
             else:
                 epochs_without_improvement += 1
-                if epochs_without_improvement == 40:
+                if epochs_without_improvement == 50:
                     print(f"Parando treinamento na época {epoch + 1}")
                     print(f"Melhor acurácia de validação: {best_validation_accuracy}")
                     print(f"acurácia atual: {accuracy}")
@@ -267,7 +298,9 @@ class NeuralNetwork:
 
         # Testando a rede
         self.hidden_layer.weights = best_hidden_weights
+        self.hidden_layer.biases = best_hidden_biases
         self.output_layer.weights = best_output_weights
+        self.output_layer.biases = best_output_biases
 
         outputs_test = []
         for entrada in test_data:
@@ -276,15 +309,15 @@ class NeuralNetwork:
 
         correct_test_outputs = 0
         for resultado, esperado in zip(outputs_test, test_labels):
-            print(
-                f"guess: {Loader.converter_binario_rotulo(resultado)} | "
-                f"true: {Loader.converter_binario_rotulo(esperado)}")
             if resultado == esperado:
                 correct_test_outputs += 1
 
         print(f"melhor acurácia de treino: {best_training_accuracy}")
         print(f"melhor acurácia de validação: {best_validation_accuracy}")
         print(f"acurácia final: {correct_test_outputs / len(test_labels)}")
+        letras_output = [Loader.converter_binario_para_letra(output) for output in outputs_test]
+        letras_esperadas = [Loader.converter_binario_para_letra(output) for output in test_labels]
+        imprimir_matriz_confusao(letras_preditas=letras_output, letras_verdadeiras=letras_esperadas)
 
         epocas = [i + 1 for i in range(0, len(acuracias))]
 
@@ -302,4 +335,74 @@ class NeuralNetwork:
 
         plt.show()
 
+        return 1
+
+    async def train_cross_validation(self, imgs_source: str, label_source: str):
+        """Treina a rede neural usando cross validation"""
+        data, labels = await NeuralNetwork.obter_dados_treinamento(imgs_source, label_source)
+
+        if len(data) != len(labels):
+            raise ValueError("Dados e rotulos com tamanhos diferentes")
+
+        porcentagem_treino = 0.65
+        porcentagem_validacao = 0.15
+
+        train_data, train_labels, validation_data, validation_labels, test_data, test_labels = \
+            await distribui_valores(data, labels, porcentagem_treino, porcentagem_validacao)
+
+        # Sem conjunto de validaçao
+        train_data.extend(validation_data)
+        train_labels.extend(validation_labels)
+
+        train_data, train_labels = await NeuralNetwork.shuffle_data(train_data, train_labels)
+
+        starting_weights_hidden = self.hidden_layer.weights
+        starting_biases_hidden = self.hidden_layer.biases
+        starting_weights_output = self.output_layer.weights
+        starting_biases_output = self.output_layer.biases
+
+        acuracias_finais = list()
+
+        num_folds = 10
+
+        train_data_folds, train_labels_folds = await NeuralNetwork.create_k_folds(train_data, train_labels, num_folds)
+        for fold_index, (test_fold, test_label_fold) in enumerate(zip(train_data_folds, train_labels_folds)):
+            # Pega os outros folds para treinamento
+            training_data = train_data_folds.copy()
+            training_data.pop(fold_index)
+            training_labels = train_labels_folds.copy()
+            training_labels.pop(fold_index)
+
+            # reduzindo uma dimensão das listas
+            training_data = [item for sublist in training_data for item in sublist]
+            training_labels = [item for sublist in training_labels for item in sublist]
+
+            # resetando a rede para cada fold
+            self.hidden_layer.weights = starting_weights_hidden
+            self.hidden_layer.biases = starting_biases_hidden
+            self.output_layer.weights = starting_weights_output
+            self.output_layer.biases = starting_biases_output
+            self.learning_rate = self.initial_learning_rate
+
+            for epoch in range(self.max_epochs):
+                await self.do_one_epoch(inputs=training_data, expected_outputs=training_labels)
+                await self.update_learning_rate(
+                    current_epoch=epoch,
+                    decay_function=self.learning_rate_function
+                )
+
+            outputs = []
+            for entrada in test_fold:
+                resultado = await self.get_output(entrada=entrada)
+                outputs.append(resultado)
+            accuracy = await self.get_accuracy(outputs, test_label_fold)
+            acuracias_finais.append(accuracy)
+            print(f"Fold {fold_index + 1} | Acurácia: {accuracy}")
+
+        print(f"Acurácia média: {sum(acuracias_finais) / len(acuracias_finais)}")
+
+        gerar_grafico([i + 1 for i in range(0, len(acuracias_finais))], acuracias_finais, "Fold", "Acurácia",
+                      "Acurácia por fold")
+
+        plt.show()
         return 1

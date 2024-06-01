@@ -8,6 +8,7 @@ class NetworkInput(BaseModel):
     hidden_size: int
     output_size: int
     dropout_rate: float
+    lambda_reg: float
     max_epochs: int
     initial_learning_rate: float
     learning_rate_function: str

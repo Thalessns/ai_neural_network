@@ -21,7 +21,8 @@ class NeuralNetwork:
             learning_rate_function: Callable,
             initial_learning_rate: float,
             dropout_rate: float,
-            max_epochs: int
+            max_epochs: int,
+            lambda_reg: float
     ) -> None:
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -29,6 +30,7 @@ class NeuralNetwork:
         self.activation_functions = activation_functions
         self.dropout_rate = dropout_rate
         self.max_epochs = max_epochs
+        self.lambda_reg = lambda_reg
 
         self.initial_learning_rate = initial_learning_rate  # usada para o decaimento da taxa de aprendizado
         self.learning_rate = initial_learning_rate  # usada para o treinamento
@@ -126,12 +128,14 @@ class NeuralNetwork:
             inputs=hidden_outputs,
             outputs=outputs,
             expected_outputs=expected_outputs,
-            learning_rate=self.learning_rate
+            learning_rate=self.learning_rate,
+            lambda_reg=self.lambda_reg
         )
         await self.hidden_layer.back_propagation(
             inputs=hidden_inputs,
             erros_output=hidden_error,
-            learning_rate=self.learning_rate
+            learning_rate=self.learning_rate,
+            lambda_reg=self.lambda_reg
         )
 
     async def do_one_epoch(self, inputs: list[list[float]], expected_outputs: list[list[float]]) -> None:

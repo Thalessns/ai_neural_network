@@ -22,7 +22,8 @@ async def test(input: NetworkInput) -> Any:
         initial_learning_rate=input.initial_learning_rate,
         learning_rate_function=learning_rate_function,
         dropout_rate=input.dropout_rate,
-        max_epochs=input.max_epochs
+        max_epochs=input.max_epochs,
+        lambda_reg=input.lambda_reg
     )
     if input.performance_evaluation == "holdout":
         return await rede.train_holdout(input.imgs_source, input.label_source)

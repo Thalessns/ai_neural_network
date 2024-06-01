@@ -57,7 +57,7 @@ class HiddenLayer(Camada):
             inputs: list[float],
             erros_output: list[float],
             learning_rate: float,
-            lambda_reg: float = 0.0  # parametro de regularização L2
+            lambda_reg: float  # parametro de regularização L2
     ) -> None:
         """Realiza o backpropagation para atualizar os pesos e os biases da camada baseado nos erros da camada de
         saída"""
@@ -102,7 +102,7 @@ class OutputLayer(Camada):
             outputs: list[float],
             expected_outputs: list[float],
             learning_rate: float,
-            lambda_reg: float = 0.0  # parametro de regularização L2
+            lambda_reg: float  # parametro de regularização L2
     ) -> list[float]:
         """Realiza o backpropagation para atualizar os pesos e os biases da camada e retorna o erro da camada
         oculta"""

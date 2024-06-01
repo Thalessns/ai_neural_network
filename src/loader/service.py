@@ -41,11 +41,11 @@ class Loader:
             for line in file:
                 labels.append(line.strip())
 
-        return await Loader.converter_rotulos(labels)
+        return await Loader.converter_letras_para_binario(labels)
 
     @staticmethod
-    async def converter_rotulos(labels: List[str]) -> List[List[int]]:
-        """Converte rotulos para binário"""
+    async def converter_letras_para_binario(labels: List[str]) -> List[List[int]]:
+        """Converte letras para binário"""
         resultado = []
         for letter in labels:
             letter = letter.lower()
@@ -56,6 +56,6 @@ class Loader:
         return resultado
 
     @staticmethod
-    def converter_binario_rotulo(binario: List[int]) -> str:
-        """Converte binário para rótulo"""
+    def converter_binario_para_letra(binario: List[int]) -> str:
+        """Converte binário para letra"""
         return chr(binario.index(1) + ord("a"))

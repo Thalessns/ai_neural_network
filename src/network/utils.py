@@ -5,6 +5,7 @@ from src.loader.service import Loader
 
 
 def gerar_grafico(x: list[float], y: list[float], xlabel: str = "", ylabel: str = "", title: str = "") -> plt:
+    """Gera um gráfico de linha com os valores de x e y passados como parâmetro"""
     # Gerando array numpy
     x = np.array(x)
     y = np.array(y)
@@ -44,7 +45,7 @@ async def distribui_valores(data: List[List[int]], labels: List[List[int]], perc
         validation_count = round(total_count * percentage_validation)
         test_count = total_count - train_count - validation_count
 
-        letra_em_binario = await Loader.converter_rotulos([letter])
+        letra_em_binario = await Loader.converter_letras_para_binario([letter])
 
         train_array.extend(values[:train_count])
         train_labels.extend(letra_em_binario * train_count)
@@ -56,7 +57,8 @@ async def distribui_valores(data: List[List[int]], labels: List[List[int]], perc
     return train_array, train_labels, validation_array, validation_labels, test_array, test_labels
 
 
-def imprimir_matriz_confusao(lista_true: list[str], lista_output: list[str]):
+def imprimir_matriz_confusao(letras_preditas: list[str], letras_verdadeiras: list[str]):
+    """Imprime a matriz de confusão para um problema de classificação de letras"""
     # Inicializar a matriz de confusão 26x26
     confusion_matrix = [[0 for _ in range(26)] for _ in range(26)]
 
@@ -64,12 +66,11 @@ def imprimir_matriz_confusao(lista_true: list[str], lista_output: list[str]):
     letra_para_indice = {chr(i): i - 97 for i in range(97, 123)}  # a-z -> 0-25
 
     # Preencher a matriz de confusão
-    for true, pred in zip(lista_true, lista_output):
+    for true, pred in zip(letras_verdadeiras, letras_preditas):
         true_index = letra_para_indice[true]
         pred_index = letra_para_indice[pred]
         confusion_matrix[true_index][pred_index] += 1
 
-    # Imprimir a matriz de confusão
     print("Matriz de Confusão:")
     print("     " + " ".join([chr(i) for i in range(97, 123)]))  # Header
     for i in range(26):

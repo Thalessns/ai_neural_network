@@ -52,7 +52,13 @@ class HiddenLayer(Camada):
     async def feed_forward(self, inputs: list[float]) -> list[float]:
         return await super().feed_forward(inputs)
 
-    async def back_propagation(self, inputs: list[float], erros_output: list[float], learning_rate: float) -> None:
+    async def back_propagation(
+            self,
+            inputs: list[float],
+            erros_output: list[float],
+            learning_rate: float,
+            lambda_reg: float = 0.0  # parametro de regularização L2
+    ) -> None:
         """Realiza o backpropagation para atualizar os pesos e os biases da camada baseado nos erros da camada de
         saída"""
 
@@ -68,8 +74,9 @@ class HiddenLayer(Camada):
 
         delta_pesos = []
         delta_biases = []
-        for gradiente in gradientes:
-            delta_pesos.append([-learning_rate * gradiente * yi for yi in inputs])
+        for neuron, gradiente in enumerate(gradientes):
+            delta_pesos.append([-learning_rate * (gradiente * yi + lambda_reg * self.weights[neuron][i]) for i, yi in
+                                enumerate(inputs)])
             delta_biases.append(-learning_rate * gradiente)
 
         # atualização de pesos
@@ -80,7 +87,7 @@ class HiddenLayer(Camada):
 
 
 class OutputLayer(Camada):
-    
+
     def __init__(self, num_neurons: int, activation_function: Callable, len_input: int):
         super().__init__(num_neurons, activation_function, len_input)
 
@@ -90,11 +97,12 @@ class OutputLayer(Camada):
         return resultado
 
     async def back_propagation(
-        self,
-        inputs: list[float],
-        outputs: list[float],
-        expected_outputs: list[float],
-        learning_rate: float
+            self,
+            inputs: list[float],
+            outputs: list[float],
+            expected_outputs: list[float],
+            learning_rate: float,
+            lambda_reg: float = 0.0  # parametro de regularização L2
     ) -> list[float]:
         """Realiza o backpropagation para atualizar os pesos e os biases da camada e retorna o erro da camada
         oculta"""
@@ -117,8 +125,9 @@ class OutputLayer(Camada):
 
         delta_pesos = []
         delta_biases = []
-        for gradiente in gradientes:
-            delta_pesos.append([-learning_rate * gradiente * yi for yi in inputs])
+        for neuron, gradiente in enumerate(gradientes):
+            delta_pesos.append([-learning_rate * (gradiente * yi + lambda_reg * self.weights[neuron][i]) for i, yi in
+                                enumerate(inputs)])
             delta_biases.append(-learning_rate * gradiente)
 
         # Calculando o erro da camada anterior

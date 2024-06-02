@@ -29,14 +29,6 @@ decay_functions = LearningRateFunctions()
 class ActivationFunctions:
 
     @staticmethod
-    async def softmax(inputs: list[float]) -> list[float]:
-        # Evita overflow
-        maximo = max(inputs)
-        exps = [math.exp(element - maximo) for element in inputs]
-        soma = sum(exps)
-        return [value / soma for value in exps]
-
-    @staticmethod
     async def relu(x: float) -> float:
         return max(0.0, x)
 

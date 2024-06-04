@@ -110,8 +110,6 @@ class NeuralNetwork:
         maximo = max(output)
         output = [1 if value == maximo else 0 for value in output]
 
-        # output = [1 if value >= 0.75 else 0 for value in output]
-
         return output
 
     async def train_one_sample(self, inputs: list[float], expected_outputs: list[float]) -> None:
@@ -348,26 +346,26 @@ class NeuralNetwork:
         if len(data) != len(labels):
             raise ValueError("Dados e rotulos com tamanhos diferentes")
 
-        porcentagem_treino = 0.65
-        porcentagem_validacao = 0.15
+        # cross validation sem usar teste final e sem parada antecipada
+        porcentagem_treino = 0.95
+        porcentagem_validacao = 0.4
+        data, labels = await NeuralNetwork.shuffle_data(data, labels)
 
         train_data, train_labels, validation_data, validation_labels, test_data, test_labels = \
             await distribui_valores(data, labels, porcentagem_treino, porcentagem_validacao)
 
-        # Sem conjunto de validaçao
+        # Jogando o conjunto de validação para o treino
         train_data.extend(validation_data)
         train_labels.extend(validation_labels)
 
         train_data, train_labels = await NeuralNetwork.shuffle_data(train_data, train_labels)
-
         starting_weights_hidden = self.hidden_layer.weights
         starting_biases_hidden = self.hidden_layer.biases
         starting_weights_output = self.output_layer.weights
         starting_biases_output = self.output_layer.biases
-
         acuracias_finais = list()
 
-        num_folds = 10
+        num_folds = 4
 
         train_data_folds, train_labels_folds = await NeuralNetwork.create_k_folds(train_data, train_labels, num_folds)
         for fold_index, (test_fold, test_label_fold) in enumerate(zip(train_data_folds, train_labels_folds)):
@@ -401,7 +399,7 @@ class NeuralNetwork:
                 outputs.append(resultado)
             accuracy = await self.get_accuracy(outputs, test_label_fold)
             acuracias_finais.append(accuracy)
-            print(f"Fold {fold_index + 1} | Acurácia: {accuracy}")
+            print(f"    Fold {fold_index + 1} | Acurácia: {accuracy}")
 
         print(f"Acurácia média: {sum(acuracias_finais) / len(acuracias_finais)}")
 

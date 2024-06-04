@@ -69,9 +69,6 @@ class HiddenLayer(Camada):
 
         gradientes = [erro_neuronio * derivada for erro_neuronio, derivada in zip(erros_output, derivadas)]
 
-        # clipping do gradiente
-        # gradientes = [await utils.clip(gradiente, -1, 1) for gradiente in gradientes]
-
         delta_pesos = []
         delta_biases = []
         for neuron, gradiente in enumerate(gradientes):
@@ -119,9 +116,6 @@ class OutputLayer(Camada):
 
         # Calculando o gradiente para cada unidade de saída
         gradientes = [erro_neuronio * derivada for erro_neuronio, derivada in zip(erros, derivadas)]
-
-        # clipping do gradiente
-        # gradientes = [await utils.clip(gradiente, -1, 1) for gradiente in gradientes]
 
         delta_pesos = []
         delta_biases = []
